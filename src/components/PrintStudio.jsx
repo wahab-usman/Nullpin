@@ -180,7 +180,7 @@ export default function PrintStudio() {
   const fileName = drop.file?.name || (isIdCard ? 'National / Student ID Card' : 'Academic_Document.pdf');
 
   return (
-    <div className="w-full max-w-xl mx-auto flex flex-col items-center py-2 select-none">
+    <div className="w-full max-w-[520px] mx-auto flex flex-col items-center py-1 select-none">
       <motion.div
         animate={
           isVaporizing
@@ -193,10 +193,10 @@ export default function PrintStudio() {
             : { scale: 1, opacity: 1 }
         }
         transition={{ duration: 0.2 }}
-        className="w-full rounded-3xl bg-white/90 dark:bg-zinc-900/90 backdrop-blur-2xl 
+        className="w-full max-w-[520px] rounded-2xl sm:rounded-3xl bg-white/90 dark:bg-zinc-900/90 backdrop-blur-2xl 
                    border border-slate-200/90 dark:border-white/10 
                    shadow-[0_25px_60px_rgba(0,0,0,0.08)] dark:shadow-[0_25px_70px_rgba(0,0,0,0.6)]
-                   overflow-hidden p-4 sm:p-8 space-y-4 sm:space-y-5"
+                   overflow-hidden p-4 sm:p-5 space-y-3 sm:space-y-4"
       >
         {/* ================= 1. TERMINAL HEADER ================= */}
         <div className="flex items-center justify-between pb-3.5 border-b border-slate-100 dark:border-zinc-800/80">

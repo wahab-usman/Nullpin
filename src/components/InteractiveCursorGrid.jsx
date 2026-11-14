@@ -83,12 +83,12 @@ export default function InteractiveCursorGrid({ isDark }) {
           currentX, currentY, spotlightRadius * 1.2
         );
         if (isDark) {
-          glowGrad.addColorStop(0, 'rgba(16, 185, 129, 0.20)');
-          glowGrad.addColorStop(0.45, 'rgba(16, 185, 129, 0.08)');
+          glowGrad.addColorStop(0, 'rgba(16, 185, 129, 0.08)');
+          glowGrad.addColorStop(0.45, 'rgba(16, 185, 129, 0.02)');
           glowGrad.addColorStop(1, 'rgba(16, 185, 129, 0)');
         } else {
-          glowGrad.addColorStop(0, 'rgba(16, 185, 129, 0.16)');
-          glowGrad.addColorStop(0.45, 'rgba(16, 185, 129, 0.06)');
+          glowGrad.addColorStop(0, 'rgba(16, 185, 129, 0.06)');
+          glowGrad.addColorStop(0.45, 'rgba(16, 185, 129, 0.015)');
           glowGrad.addColorStop(1, 'rgba(16, 185, 129, 0)');
         }
 
@@ -148,11 +148,11 @@ export default function InteractiveCursorGrid({ isDark }) {
           ctx.arc(x, y, r, 0, Math.PI * 2);
 
           if (isDark) {
-            // Dark mode: vibrant neon emerald (#10b981 / #34d399)
-            ctx.fillStyle = `rgba(52, 211, 153, ${0.35 + easeIntensity * 0.65})`;
+            // Dark mode: subtle neon emerald (#10b981 / #34d399)
+            ctx.fillStyle = `rgba(52, 211, 153, ${0.15 + easeIntensity * 0.40})`;
           } else {
-            // Light mode: deep emerald green (#059669)
-            ctx.fillStyle = `rgba(5, 150, 105, ${0.40 + easeIntensity * 0.60})`;
+            // Light mode: subtle deep emerald green (#059669)
+            ctx.fillStyle = `rgba(5, 150, 105, ${0.15 + easeIntensity * 0.40})`;
           }
           ctx.fill();
         }
@@ -176,7 +176,7 @@ export default function InteractiveCursorGrid({ isDark }) {
   return (
     <canvas
       ref={canvasRef}
-      className="fixed inset-0 pointer-events-none z-0"
+      className="fixed inset-0 pointer-events-none z-0 opacity-25 dark:opacity-20"
       style={{ width: '100%', height: '100%' }}
     />
   );

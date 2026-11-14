@@ -25,7 +25,7 @@ function AtmosphericCanvas() {
 
   return (
     <div
-      className={`min-h-[100dvh] relative overflow-x-hidden font-sans transition-colors duration-200 selection:bg-emerald-500/30 flex flex-col justify-between ${
+      className={`min-h-[100dvh] relative overflow-x-hidden font-sans transition-colors duration-200 selection:bg-emerald-500/30 flex flex-col items-center justify-between py-3 sm:py-5 px-3 sm:px-6 ${
         isDark ? 'bg-[#09090B] text-zinc-100' : 'bg-[#F8F9FA] text-slate-900'
       }`}
     >
@@ -33,60 +33,32 @@ function AtmosphericCanvas() {
       <InteractiveCursorGrid isDark={isDark} />
 
       {/* ================= SUBTLE AMBIENT AURORA DEPTH ================= */}
-      <div className="fixed inset-0 -z-20 overflow-hidden pointer-events-none opacity-70">
-        {/* Animated Floating Emerald Aurora Orb */}
-        <motion.div
-          animate={{
-            x: [0, 40, -25, 0],
-            y: [0, -30, 15, 0],
-            scale: [1, 1.05, 0.96, 1],
-          }}
-          transition={{
-            duration: 22,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          }}
-          className="absolute -top-24 left-1/4 w-[480px] h-[480px] rounded-full bg-emerald-400/15 dark:bg-emerald-500/10 blur-[110px]"
-        />
-
-        {/* Animated Floating Cyan/Teal Aurora Orb */}
-        <motion.div
-          animate={{
-            x: [0, -35, 25, 0],
-            y: [0, 25, -25, 0],
-            scale: [1, 0.95, 1.05, 1],
-          }}
-          transition={{
-            duration: 26,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          }}
-          className="absolute top-16 right-1/4 w-[480px] h-[480px] rounded-full bg-cyan-400/15 dark:bg-cyan-500/8 blur-[110px]"
-        />
+      <div className="fixed inset-0 -z-20 overflow-hidden pointer-events-none flex items-center justify-center">
+        <div className="w-[520px] h-[520px] rounded-full bg-emerald-500/[0.06] blur-[140px]" />
       </div>
 
-      {/* Top Capsule Header (Properly spaced, zero overlap!) */}
-      <div className="relative z-30 pt-2 sm:pt-4 w-full">
+      {/* Top Capsule Header */}
+      <div className="relative z-30 w-full flex justify-center">
         <DynamicIsland />
       </div>
 
-      {/* Main Content Stage (Fixed top alignment - prevents jumping between tabs) */}
-      <main className="relative z-10 max-w-4xl w-full mx-auto px-3.5 sm:px-6 md:px-8 pt-2 sm:pt-6 pb-4 flex-1 flex flex-col items-center justify-start">
+      {/* Main Content Stage (Proportionally centered, fits 100% inside 768px-900px laptop screens) */}
+      <main className="relative z-10 w-full max-w-[520px] mx-auto flex-1 flex flex-col items-center justify-center my-auto py-1">
         <SpatialStage />
       </main>
 
       {/* Minimalist Telemetry Footer */}
-      <footer className="relative z-10 max-w-4xl w-full mx-auto px-3.5 sm:px-6 md:px-8 py-2.5 flex flex-col sm:flex-row items-center justify-between gap-2 text-[9px] min-[380px]:text-[10px] font-mono text-slate-400 dark:text-zinc-500 border-t border-slate-200/60 dark:border-zinc-800/60 text-center sm:text-left">
-        <div className="flex items-center gap-1.5 justify-center sm:justify-start">
+      <footer className="relative z-10 w-full max-w-[520px] mx-auto pt-2 pb-0.5 flex flex-col sm:flex-row items-center justify-between gap-1 text-[9px] min-[380px]:text-[10px] font-mono text-slate-400 dark:text-zinc-500 border-t border-slate-200/50 dark:border-zinc-800/50 text-center sm:text-left">
+        <div className="flex items-center gap-1.5 justify-center sm:justify-start shrink-0">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-          <span>NULLPIN • ZERO-TRACE VOLATILE RAM</span>
+          <span className="whitespace-nowrap">NULLPIN • ZERO-TRACE VOLATILE RAM</span>
         </div>
-        <div className="flex items-center gap-2 sm:gap-3 flex-wrap justify-center sm:justify-end">
-          <span>NO LOGINS</span>
+        <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap justify-center sm:justify-end shrink-0">
+          <span className="whitespace-nowrap">NO LOGINS</span>
           <span>•</span>
-          <span>NO DOWNLOADS</span>
+          <span className="whitespace-nowrap">NO DOWNLOADS</span>
           <span>•</span>
-          <span>5-MIN AUTO-WIPE</span>
+          <span className="whitespace-nowrap">5-MIN AUTO-WIPE</span>
         </div>
       </footer>
     </div>

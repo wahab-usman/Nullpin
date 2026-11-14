@@ -77,28 +77,28 @@ export default function HolographicTicket() {
   const primaryFileSize = formatFileSize(activeDrop.file?.size);
 
   return (
-    <div className="w-full max-w-lg mx-auto flex flex-col items-center py-1 sm:py-2 select-none">
+    <div className="w-full max-w-[520px] mx-auto flex flex-col items-center py-1 select-none">
       <motion.div
         initial={{ opacity: 0, scale: 0.97, y: 12 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-        className="relative w-full rounded-3xl bg-white/90 dark:bg-zinc-900/90 backdrop-blur-2xl 
+        className="relative w-full max-w-[520px] rounded-2xl sm:rounded-3xl bg-white/90 dark:bg-zinc-900/90 backdrop-blur-2xl 
                    border border-slate-200/90 dark:border-white/10 
                    shadow-[0_25px_60px_rgba(0,0,0,0.08)] dark:shadow-[0_25px_60px_rgba(0,0,0,0.55)]
                    overflow-hidden"
       >
         {/* TICKET TOP HEADER */}
-        <div className="px-4 sm:px-8 pt-4 sm:pt-5 pb-3 sm:pb-4 border-b border-slate-100 dark:border-zinc-800/80 flex items-center justify-between">
+        <div className="px-4 sm:px-6 pt-3.5 sm:pt-4 pb-2.5 sm:pb-3 border-b border-slate-100 dark:border-zinc-800/80 flex items-center justify-between">
           <div className="flex items-center gap-2 sm:gap-2.5">
             <span className="relative flex h-2.5 w-2.5">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
               <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
             </span>
             <div className="flex flex-col">
-              <span className="text-xs font-mono font-extrabold uppercase tracking-wider text-slate-800 dark:text-zinc-100">
+              <span className="text-xs font-mono font-extrabold uppercase tracking-wider text-slate-800 dark:text-zinc-100 whitespace-nowrap">
                 ACTIVE PIN PASS
               </span>
-              <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 font-semibold tracking-tight">
+              <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 font-semibold tracking-tight whitespace-nowrap">
                 ZERO-TRACE RAM PIPE ARMED
               </span>
             </div>
@@ -106,41 +106,41 @@ export default function HolographicTicket() {
 
           {/* COUNTDOWN TIMER BADGE */}
           <div
-            className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full font-mono text-xs font-bold transition-colors ${
+            className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full font-mono text-xs font-bold transition-colors whitespace-nowrap shrink-0 ${
               isTimeLow
                 ? 'bg-rose-500/15 text-rose-500 border border-rose-500/30 animate-pulse'
                 : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20'
             }`}
           >
-            <Clock className="w-3.5 h-3.5" />
+            <Clock className="w-3.5 h-3.5 shrink-0" />
             <span>{formatTime(timeLeft)}</span>
           </div>
         </div>
 
         {/* 4-DIGIT PIN SHOWCASE */}
-        <div className="px-4 sm:px-8 pt-5 sm:pt-7 pb-4 sm:pb-6 text-center">
-          <p className="text-[10px] sm:text-[11px] font-mono font-bold uppercase tracking-widest text-slate-400 dark:text-zinc-400 mb-3 sm:mb-4">
+        <div className="px-4 sm:px-6 pt-4 sm:pt-5 pb-3 sm:pb-4 text-center">
+          <p className="text-[10px] sm:text-[11px] font-mono font-bold uppercase tracking-widest text-slate-400 dark:text-zinc-400 mb-3 sm:mb-4 whitespace-nowrap">
             SHARE THIS 4-DIGIT PIN WITH THE PRINT TERMINAL
           </p>
 
           {/* GIANT KINETIC PIN KEYCAPS */}
-          <div className="flex items-center justify-center gap-2 min-[380px]:gap-3 sm:gap-4 mb-4 sm:mb-5">
+          <div className="flex items-center justify-center gap-2.5 sm:gap-4 mb-3 sm:mb-4">
             {pin.split('').map((digit, i) => (
               <motion.div
                 key={i}
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.05, duration: 0.2 }}
-                className="relative w-12 h-16 min-[380px]:w-14 min-[380px]:h-18 sm:w-20 sm:h-24 rounded-2xl sm:rounded-3xl
+                className="relative w-14 h-16 sm:w-18 sm:h-20 rounded-2xl sm:rounded-3xl
                            bg-slate-100/90 dark:bg-zinc-800/80 
                            border-2 border-emerald-500/30 dark:border-emerald-500/35 
-                           flex items-center justify-center font-mono font-black text-2xl min-[380px]:text-3xl sm:text-5xl 
+                           flex items-center justify-center font-mono font-black text-3xl sm:text-4xl 
                            text-slate-900 dark:text-emerald-400 
                            shadow-[0_8px_20px_rgba(16,185,129,0.08)] dark:shadow-[0_0_30px_rgba(16,185,129,0.18)]"
               >
                 {/* Specular subtle highlight */}
                 <div className="absolute top-1.5 inset-x-2 sm:inset-x-3 h-[1px] bg-white/40 dark:bg-white/15 rounded-full" />
-                <span className="relative z-10">{digit}</span>
+                <span className="relative z-10 select-none">{digit}</span>
               </motion.div>
             ))}
           </div>

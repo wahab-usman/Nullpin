@@ -58,32 +58,27 @@ export default function DynamicIsland() {
   };
 
   return (
-    <header className="w-full flex justify-center pb-2 px-2 sm:px-4 select-none relative z-40">
+    <header className="w-full flex justify-center pb-1 px-2 select-none relative z-40">
       <div
-        className={`flex items-center min-h-[52px] sm:min-h-[62px] max-w-[95vw] sm:max-w-2xl px-3 sm:px-7 py-2 sm:py-3.5 gap-2 sm:gap-6 md:gap-7 rounded-full 
-          transition-all duration-300
+        className={`h-12 sm:h-14 px-3.5 sm:px-6 rounded-full inline-flex items-center justify-between gap-3 sm:gap-6 max-w-[95vw] w-[calc(100vw-1.5rem)] sm:w-auto
+          transition-all duration-300 whitespace-nowrap
           ${
             isDark
               ? 'bg-zinc-900/65 backdrop-blur-2xl backdrop-saturate-150 border border-white/15 shadow-[0_16px_50px_rgba(0,0,0,0.65)]'
               : 'bg-white/65 backdrop-blur-2xl backdrop-saturate-150 border border-slate-200/80 shadow-[0_12px_40px_rgba(0,0,0,0.08)]'
           }`}
       >
-        {/* ================= BIGGER BRAND LOGO ================= */}
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-          <div className="relative flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-xl sm:rounded-2xl bg-emerald-500/20 border border-emerald-500/40">
-            <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-emerald-500 shadow-[0_0_12px_#10B981]" />
+        {/* ================= 1. BRAND LOGO (Left) ================= */}
+        <div className="flex items-center gap-2 shrink-0 whitespace-nowrap">
+          <div className="relative flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/40 shrink-0">
+            <span className="w-2 sm:w-2.5 h-2 sm:h-2.5 rounded-full bg-emerald-500 shadow-[0_0_10px_#10B981]" />
           </div>
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            <span className="text-base sm:text-lg font-extrabold tracking-tight text-slate-900 dark:text-zinc-100 font-sans">
-              NullPin
-            </span>
-            <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700/60 text-[10px] font-mono font-bold text-emerald-600 dark:text-emerald-400 uppercase">
-              RAM.v1
-            </span>
-          </div>
+          <span className="font-bold text-sm sm:text-base tracking-tight text-slate-900 dark:text-zinc-100 font-sans whitespace-nowrap shrink-0">
+            NullPin
+          </span>
         </div>
 
-        {/* Dynamic Island Expandable Capsule */}
+        {/* ================= 2. CENTER STATUS BADGE (Desktop only) ================= */}
         <AnimatePresence mode="wait">
           {hasActivePin ? (
             <motion.div
@@ -92,15 +87,13 @@ export default function DynamicIsland() {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               transition={{ duration: 0.15 }}
-              className="flex items-center gap-1.5 sm:gap-2.5 pl-0.5 sm:pl-1 pr-0.5 sm:pr-1"
+              className="inline-flex items-center gap-2 shrink-0 whitespace-nowrap"
             >
-              <div className="w-[1px] h-4 sm:h-5 bg-slate-300 dark:bg-zinc-700" />
-
               {/* Live PIN Quick Pill */}
               <button
                 type="button"
                 onClick={handleCopyPin}
-                className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 rounded-full bg-emerald-500/15 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-mono text-xs sm:text-sm font-bold cursor-pointer transition-colors touch-manipulation"
+                className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full bg-emerald-500/15 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-mono text-xs font-bold cursor-pointer transition-colors whitespace-nowrap shrink-0"
                 title="Click to copy active PIN"
               >
                 <span>PIN {activeDrop.pin}</span>
@@ -109,7 +102,7 @@ export default function DynamicIsland() {
 
               {/* 5-Minute Countdown Timer */}
               <div
-                className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 rounded-full font-mono text-xs sm:text-sm font-bold ${
+                className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full font-mono text-xs font-bold whitespace-nowrap shrink-0 ${
                   isTimeLow
                     ? 'bg-rose-500/15 text-rose-500 animate-pulse'
                     : 'bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300'
@@ -120,34 +113,31 @@ export default function DynamicIsland() {
               </div>
             </motion.div>
           ) : (
-            <div className="hidden sm:flex items-center gap-3">
-              <div className="w-[1px] h-5 bg-slate-300 dark:bg-zinc-800" />
-              <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-100/90 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700/50 text-xs font-mono text-slate-600 dark:text-zinc-300 font-semibold">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span>ZERO-TRACE RAM</span>
-              </div>
+            <div className="hidden md:inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100/90 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700/50 text-[11px] font-mono text-slate-600 dark:text-zinc-300 font-semibold whitespace-nowrap shrink-0">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+              <span className="whitespace-nowrap">ZERO-TRACE RAM • 5M AUTO-WIPE</span>
             </div>
           )}
         </AnimatePresence>
 
-        <div className="w-[1px] h-4 sm:h-5 bg-slate-300 dark:bg-zinc-800" />
-
-        {/* ================= FULL "Download" TEXT BUTTON + HOVER DROPDOWN ================= */}
-        <div 
-          className="relative"
-          onMouseEnter={() => setShowDownloadMenu(true)}
-          onMouseLeave={() => setShowDownloadMenu(false)}
-        >
-          <button
-            type="button"
-            onClick={() => setShowDownloadMenu((prev) => !prev)}
-            className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-semibold transition-all duration-200 cursor-pointer touch-manipulation min-h-[44px] ${
-              showDownloadMenu
-                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                : 'text-slate-700 dark:text-zinc-300 hover:bg-emerald-500/10 hover:text-emerald-600 dark:hover:text-emerald-400'
-            }`}
-            aria-label="Download native app"
+        {/* ================= 3. RIGHT CONTROLS ================= */}
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 whitespace-nowrap">
+          {/* Download dropdown button */}
+          <div 
+            className="relative shrink-0 whitespace-nowrap"
+            onMouseEnter={() => setShowDownloadMenu(true)}
+            onMouseLeave={() => setShowDownloadMenu(false)}
           >
+            <button
+              type="button"
+              onClick={() => setShowDownloadMenu((prev) => !prev)}
+              className={`inline-flex items-center gap-1.5 text-xs sm:text-sm font-medium whitespace-nowrap px-2.5 py-1.5 rounded-full transition-all duration-200 cursor-pointer shrink-0 ${
+                showDownloadMenu
+                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                  : 'text-slate-700 dark:text-zinc-300 hover:bg-emerald-500/10 hover:text-emerald-600 dark:hover:text-emerald-400'
+              }`}
+              aria-label="Download native app"
+            >
             <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-500 shrink-0" />
             <span className="font-semibold">Download</span>
             <ChevronDown 
@@ -254,44 +244,45 @@ export default function DynamicIsland() {
               </motion.div>
             )}
           </AnimatePresence>
+          </div>
+
+          <div className="hidden sm:block w-[1px] h-4 bg-slate-300 dark:bg-zinc-800 shrink-0" />
+
+          {/* Audio FX Toggle (Desktop & Tablet) */}
+          <button
+            type="button"
+            onClick={() => {
+              sound.toggleSnap();
+              toggleSound();
+            }}
+            className="hidden sm:flex items-center justify-center w-8 h-8 rounded-full 
+                       text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100 
+                       hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer shrink-0"
+            title={soundEnabled ? 'Mute sounds' : 'Unmute sounds'}
+          >
+            {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4 opacity-40" />}
+          </button>
+
+          {/* Theme Switcher Button */}
+          <button
+            type="button"
+            onClick={() => {
+              sound.toggleSnap();
+              toggle();
+            }}
+            className="flex items-center justify-center w-8 h-8 rounded-full 
+                       bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700/60
+                       text-slate-700 dark:text-zinc-200 hover:bg-slate-200 dark:hover:bg-zinc-700
+                       transition-colors cursor-pointer shrink-0"
+            aria-label="Toggle dark/light theme"
+          >
+            {isDark ? (
+              <Sun className="w-4 h-4 text-amber-400" />
+            ) : (
+              <Moon className="w-4 h-4 text-slate-700" />
+            )}
+          </button>
         </div>
-
-        <div className="w-[1px] h-5 bg-slate-300 dark:bg-zinc-800" />
-
-        {/* Audio FX Toggle */}
-        <button
-          type="button"
-          onClick={() => {
-            sound.toggleSnap();
-            toggleSound();
-          }}
-          className="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full 
-                     text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100 
-                     hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer touch-manipulation min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0"
-          title={soundEnabled ? 'Mute sounds' : 'Unmute sounds'}
-        >
-          {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4 opacity-40" />}
-        </button>
-
-        {/* Theme Switcher Button */}
-        <button
-          type="button"
-          onClick={() => {
-            sound.toggleSnap();
-            toggle();
-          }}
-          className="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full 
-                     bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700/60
-                     text-slate-700 dark:text-zinc-200 hover:bg-slate-200 dark:hover:bg-zinc-700
-                     transition-colors cursor-pointer touch-manipulation min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0"
-          aria-label="Toggle dark/light theme"
-        >
-          {isDark ? (
-            <Sun className="w-4 h-4 text-amber-400" />
-          ) : (
-            <Moon className="w-4 h-4 text-slate-700" />
-          )}
-        </button>
       </div>
     </header>
   );
