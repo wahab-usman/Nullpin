@@ -171,6 +171,9 @@ function parseDocxXml(xmlStr) {
   }
 }
 
+// Module-level execution lock to strictly prevent duplicate print triggers
+let isGlobalPrintLocked = false;
+
 /**
  * Primary RAM Printing Engine:
  * Creates an isolated hidden iframe that Chrome/Edge/Firefox PDFium & Layout engines
@@ -181,6 +184,13 @@ export async function printFromRam(dropData, onPrintComplete) {
     console.error('[NullPin RAM Print] No drop data provided.');
     return;
   }
+
+  // Strict check: if a print dialog is already open or processing, reject duplicate invocations
+  if (isGlobalPrintLocked) {
+    console.warn('[NullPin RAM Print] Print job already in progress, ignoring duplicate call.');
+    return;
+  }
+  isGlobalPrintLocked = true;
 
   // 1. Remove any previous print frame if present
   const existingFrame = document.getElementById('nullpin-ram-print-frame');
@@ -206,8 +216,53 @@ export async function printFromRam(dropData, onPrintComplete) {
   const finishPrint = () => {
     if (isCompleted) return;
     isCompleted = true;
-    if (typeof onPrintComplete === 'function') {
-      onPrintComplete();
+    isGlobalPrintLocked = false;
+
+    // Clean up window listeners
+    try {
+      window.removeEventListener('afterprint', handleAfterPrint);
+      window.removeEventListener('focus', handleFocusReturn);
+    } catch (e) {}
+
+    // Allow the browser print spooler sufficient time to read document data from the iframe
+    setTimeout(() => {
+      if (typeof onPrintComplete === 'function') {
+        onPrintComplete();
+      }
+    }, 1000);
+  };
+
+  // Listen for window returning to focus AFTER print dialog has genuinely closed
+  const handleFocusReturn = () => {
+    setTimeout(() => {
+      if (document.hasFocus()) {
+        finishPrint();
+      }
+    }, 500);
+  };
+
+  const handleAfterPrint = () => {
+    // afterprint fired - native print dialog was submitted, saved, or dismissed
+    if (document.hasFocus()) {
+      finishPrint();
+    } else {
+      window.addEventListener('focus', handleFocusReturn, { once: true });
+      // Generous fallback if focus event is not emitted by OS
+      setTimeout(finishPrint, 3500);
+    }
+  };
+
+  const attachAfterPrintListener = () => {
+    try {
+      if (iframe.contentWindow) {
+        iframe.contentWindow.onafterprint = handleAfterPrint;
+      }
+    } catch (err) {
+      console.warn('[NullPin RAM Print] Could not attach onafterprint to iframe:', err);
+    }
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('afterprint', handleAfterPrint, { once: true });
     }
   };
 
@@ -231,38 +286,6 @@ export async function printFromRam(dropData, onPrintComplete) {
   // Append frame to DOM
   document.body.appendChild(iframe);
 
-  // Setup afterprint listener on iframe and parent window
-  let fired = false;
-  const handleAfterPrint = () => {
-    if (fired) return;
-    fired = true;
-    if (typeof window !== 'undefined') {
-      window.removeEventListener('afterprint', handleAfterPrint);
-    }
-    finishPrint();
-  };
-
-  const attachAfterPrintListener = () => {
-    try {
-      if (iframe.contentWindow) {
-        iframe.contentWindow.onafterprint = handleAfterPrint;
-      }
-    } catch (err) {
-      console.warn('[NullPin RAM Print] Could not attach onafterprint to iframe:', err);
-    }
-
-    if (typeof window !== 'undefined') {
-      window.addEventListener('afterprint', handleAfterPrint, { once: true });
-    }
-
-    // Safety fallback: if print dialog dismissed without afterprint firing
-    setTimeout(() => {
-      if (!fired) {
-        handleAfterPrint();
-      }
-    }, 15000);
-  };
-
   // ==============================================================
   // CASE A: PDF Files (Native PDFium Rendering)
   // ONLY for genuine PDF files!
@@ -270,22 +293,18 @@ export async function printFromRam(dropData, onPrintComplete) {
   if (isPdf && dropData.blobUrl) {
     iframe.src = dropData.blobUrl;
 
-    let loaded = false;
+    let printDispatched = false;
     const triggerPdfPrint = () => {
-      if (loaded) return;
-      loaded = true;
+      if (printDispatched) return;
+      printDispatched = true;
       attachAfterPrintListener();
 
       setTimeout(() => {
         try {
           iframe.contentWindow.focus();
           iframe.contentWindow.print();
-          // Modal dialog returned — trigger completion
-          setTimeout(() => {
-            handleAfterPrint();
-          }, 350);
         } catch (err) {
-          console.error('[NullPin RAM Print] PDF print dispatch error:', err);
+          console.warn('[NullPin RAM Print] PDF direct print error, fallback to HTML sheet:', err);
           fallbackHtmlPrint(iframe, dropData, isGrayscale, finishPrint);
         }
       }, 500);
@@ -293,13 +312,15 @@ export async function printFromRam(dropData, onPrintComplete) {
 
     iframe.onload = triggerPdfPrint;
     iframe.onerror = () => {
-      console.warn('[NullPin RAM Print] PDF iframe error, fallback to HTML sheet');
-      fallbackHtmlPrint(iframe, dropData, isGrayscale, finishPrint);
+      if (!printDispatched) {
+        printDispatched = true;
+        fallbackHtmlPrint(iframe, dropData, isGrayscale, finishPrint);
+      }
     };
 
     // Safety fallback: in case iframe.onload takes too long or fails to dispatch
     setTimeout(() => {
-      if (!loaded) {
+      if (!printDispatched) {
         triggerPdfPrint();
       }
     }, 2500);
@@ -570,24 +591,25 @@ function renderHtmlAndPrint(iframe, htmlContent, onAttachListener, onComplete) {
 
   onAttachListener();
 
-  const images = doc.querySelectorAll('img');
-
+  let printDispatched = false;
   const executePrint = () => {
+    if (printDispatched) return;
+    printDispatched = true;
+
     setTimeout(() => {
       try {
         iframe.contentWindow.focus();
         iframe.contentWindow.print();
-        // Modal dialog returned — trigger completion
-        setTimeout(() => {
-          onComplete();
-        }, 350);
       } catch (e) {
         console.error('[NullPin RAM Print] Error calling contentWindow.print():', e);
-        onComplete();
+        if (typeof onComplete === 'function') {
+          onComplete();
+        }
       }
     }, 250);
   };
 
+  const images = doc.querySelectorAll('img');
   if (images.length === 0) {
     executePrint();
     return;
@@ -610,8 +632,12 @@ function renderHtmlAndPrint(iframe, htmlContent, onAttachListener, onComplete) {
     }
   });
 
-  // Fallback timeout in case image loading stalls
-  setTimeout(executePrint, 1200);
+  // Fallback timeout in case image loading stalls (only if not already printed)
+  setTimeout(() => {
+    if (!printDispatched) {
+      executePrint();
+    }
+  }, 1200);
 }
 
 /**

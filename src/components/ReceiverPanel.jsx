@@ -168,20 +168,23 @@ function UnlockedDock({ drop, onBurn }) {
   const { updateDropStatus } = useNullPin();
 
   const handlePrint = useCallback(() => {
+    if (printed) return;
     setPrinted(true);
-    updateDropStatus('burned');
-    // Trigger window.print for the print zone
-    setTimeout(() => {
-      window.print();
-    }, 200);
-    // After "printing," trigger burn
-    setTimeout(() => {
-      if (drop.prefs.burnAfterPrint) {
-        setBurning(true);
-        setTimeout(() => onBurn(), 600);
+
+    const onAfterPrint = () => {
+      window.removeEventListener('afterprint', onAfterPrint);
+      if (drop.prefs?.burnAfterPrint) {
+        setTimeout(() => {
+          updateDropStatus('burned');
+          setBurning(true);
+          setTimeout(() => onBurn(), 600);
+        }, 1500);
       }
-    }, 1500);
-  }, [drop, updateDropStatus, onBurn]);
+    };
+
+    window.addEventListener('afterprint', onAfterPrint, { once: true });
+    window.print();
+  }, [drop, updateDropStatus, onBurn, printed]);
 
   const handleBurnNow = useCallback(() => {
     updateDropStatus('burned');

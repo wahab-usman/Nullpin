@@ -56,7 +56,7 @@ export default function PrintStudio() {
   const printedCount = filesList.filter((f) => printedFileIds.has(f.id || f.name)).length;
 
   // Auto-Burn sequence: initiates zero-trace RAM wipe once print/save completes
-  const startAutoBurnSequence = useCallback((delayMs = 2000) => {
+  const startAutoBurnSequence = useCallback((delayMs = 3000) => {
     setIsAutoBurning(true);
     const timer = setTimeout(() => {
       setIsVaporizing(true);
@@ -71,6 +71,7 @@ export default function PrintStudio() {
 
   // Save / extract ZIP archive from RAM
   const handleSaveArchive = useCallback((fileObj) => {
+    if (isVaporizing) return;
     const fKey = fileObj.id || fileObj.name;
     const url = fileObj.blobUrl || (fileObj.rawFile instanceof Blob ? URL.createObjectURL(fileObj.rawFile) : null);
     if (!url) return;
@@ -87,14 +88,15 @@ export default function PrintStudio() {
       const nextSet = new Set([...prev, fKey]);
       const allDone = filesList.length > 0 && filesList.every((f) => nextSet.has(f.id || f.name));
       if (allDone) {
-        startAutoBurnSequence(2000);
+        startAutoBurnSequence(3000);
       }
       return nextSet;
     });
-  }, [filesList, startAutoBurnSequence]);
+  }, [filesList, startAutoBurnSequence, isVaporizing]);
 
   // Print individual file from manifest
   const handlePrintSingleFile = useCallback((fileObj) => {
+    if (isPrinting || isAutoBurning || isVaporizing) return;
     if (isZipFile(fileObj)) {
       handleSaveArchive(fileObj);
       return;
@@ -116,16 +118,18 @@ export default function PrintStudio() {
         const nextSet = new Set([...prev, fKey]);
         const allDone = filesList.length > 0 && filesList.every((f) => nextSet.has(f.id || f.name));
         if (allDone) {
-          startAutoBurnSequence(2000);
+          startAutoBurnSequence(3000);
         }
         return nextSet;
       });
     });
-  }, [drop, handleSaveArchive, filesList, startAutoBurnSequence]);
+  }, [drop, handleSaveArchive, filesList, startAutoBurnSequence, isPrinting, isAutoBurning, isVaporizing]);
 
   // Primary action button handler:
   // Handles single files, archives, and sequential queue execution for multi-file batches
   const handlePrint = useCallback(() => {
+    if (isPrinting || isAutoBurning || isVaporizing) return;
+
     if (isSingleZip) {
       handleSaveArchive(drop.file || filesList[0]);
       return;
@@ -150,7 +154,7 @@ export default function PrintStudio() {
         setIsPrinting(false);
         const fKey = target?.id || target?.name || 'primary';
         setPrintedFileIds((prev) => new Set([...prev, fKey]));
-        startAutoBurnSequence(2000);
+        startAutoBurnSequence(3000);
       });
       return;
     }
@@ -160,7 +164,7 @@ export default function PrintStudio() {
     const target = nextTargetFile;
     if (!target) return;
     handlePrintSingleFile(target);
-  }, [drop, isSingleZip, allAreZip, isMultiFile, filesList, nextTargetFile, handlePrintSingleFile, handleSaveArchive, startAutoBurnSequence]);
+  }, [drop, isSingleZip, allAreZip, isMultiFile, filesList, nextTargetFile, handlePrintSingleFile, handleSaveArchive, startAutoBurnSequence, isPrinting, isAutoBurning, isVaporizing]);
 
   const handleVaporizeNow = useCallback(() => {
     if (autoBurnTimer) clearTimeout(autoBurnTimer);
@@ -404,7 +408,7 @@ export default function PrintStudio() {
             >
               <div className="flex items-center gap-2">
                 <Flame className="w-4 h-4 text-rose-500 animate-pulse shrink-0" />
-                <span className="text-left">Print dispatched. Auto-purging RAM buffer in 2 seconds...</span>
+                <span className="text-left">Print complete. Auto-purging RAM buffer in 3 seconds...</span>
               </div>
               <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-rose-500/20 text-rose-500 shrink-0 uppercase tracking-wider">
                 AUTO-BURN
