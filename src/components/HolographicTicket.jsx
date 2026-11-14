@@ -77,12 +77,12 @@ export default function HolographicTicket() {
   const primaryFileSize = formatFileSize(activeDrop.file?.size);
 
   return (
-    <div className="w-full max-w-[520px] mx-auto flex flex-col items-center py-1 select-none">
+    <div className="w-full max-w-[500px] mx-auto flex flex-col items-center py-1 select-none">
       <motion.div
         initial={{ opacity: 0, scale: 0.97, y: 12 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-        className="relative w-full max-w-[520px] rounded-2xl sm:rounded-3xl bg-white/90 dark:bg-zinc-900/90 backdrop-blur-2xl 
+        className="relative w-full max-w-[500px] rounded-2xl sm:rounded-3xl bg-white/90 dark:bg-zinc-900/90 backdrop-blur-2xl 
                    border border-slate-200/90 dark:border-white/10 
                    shadow-[0_25px_60px_rgba(0,0,0,0.08)] dark:shadow-[0_25px_60px_rgba(0,0,0,0.55)]
                    overflow-hidden"

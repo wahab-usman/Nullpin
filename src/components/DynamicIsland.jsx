@@ -60,7 +60,7 @@ export default function DynamicIsland() {
   return (
     <header className="w-full flex justify-center pb-1 px-2 select-none relative z-40">
       <div
-        className={`h-12 sm:h-14 px-3.5 sm:px-6 rounded-full inline-flex items-center justify-between gap-3 sm:gap-6 max-w-[95vw] w-[calc(100vw-1.5rem)] sm:w-auto
+        className={`h-12 sm:h-14 px-4 sm:px-6 rounded-full inline-flex items-center justify-between gap-3 sm:gap-6 max-w-[95vw] w-[calc(100vw-1.5rem)] sm:w-auto
           transition-all duration-300 whitespace-nowrap
           ${
             isDark
@@ -156,7 +156,7 @@ export default function DynamicIsland() {
                 exit={{ opacity: 0, y: 8, scale: 0.96 }}
                 transition={{ duration: 0.18, ease: 'easeOut' }}
                 className="absolute top-full mt-3 right-0 sm:right-auto sm:left-1/2 sm:-translate-x-1/2 
-                           w-[calc(100vw-2rem)] max-w-xs sm:w-72 rounded-3xl p-3 z-50
+                           w-[calc(100vw-2rem)] max-w-[280px] sm:w-72 rounded-3xl p-3 z-50
                            bg-white/90 dark:bg-zinc-900/90 backdrop-blur-2xl backdrop-saturate-150
                            border border-slate-200/90 dark:border-white/15 
                            shadow-[0_20px_50px_rgba(0,0,0,0.15)] dark:shadow-[0_25px_60px_rgba(0,0,0,0.7)]"

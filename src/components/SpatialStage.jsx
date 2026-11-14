@@ -17,7 +17,7 @@ export default function SpatialStage() {
   const isPortalMode = currentView === 'portal';
 
   return (
-    <div className="w-full max-w-[520px] mx-auto flex flex-col items-center gap-2 sm:gap-2.5">
+    <div className="w-full max-w-[500px] mx-auto flex flex-col items-center gap-2.5 sm:gap-3.5">
       {/* Centered Segmented Switcher (Visible in portal mode) */}
       <AnimatePresence>
         {isPortalMode && (

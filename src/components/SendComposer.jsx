@@ -241,9 +241,9 @@ export default function SendComposer() {
   };
 
   return (
-    <div className="w-full max-w-[520px] mx-auto flex flex-col items-center">
+    <div className="w-full max-w-[500px] mx-auto flex flex-col items-center">
       {/* ================= 1. SLIDING PILL TABS ================= */}
-      <div className="flex justify-center mb-2 sm:mb-2.5 w-full px-1">
+      <div className="flex justify-center mb-2.5 sm:mb-3.5 w-full px-1">
         <div className="relative inline-flex p-1 rounded-full bg-slate-200/70 dark:bg-zinc-900/80 backdrop-blur-md border border-slate-300/60 dark:border-white/[0.08] shadow-sm">
           {MODES.map((m) => {
             const Icon = m.icon;
@@ -288,7 +288,7 @@ export default function SendComposer() {
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25, ease: 'easeOut' }}
-        className="w-full max-w-[520px] rounded-2xl sm:rounded-3xl p-4 sm:p-5 bg-white/80 dark:bg-zinc-900/75 backdrop-blur-xl 
+        className="w-full max-w-[500px] rounded-2xl sm:rounded-3xl p-4 sm:p-5 bg-white/80 dark:bg-zinc-900/75 backdrop-blur-xl 
                    border border-slate-200/90 dark:border-white/10 
                    shadow-[0_20px_50px_rgba(0,0,0,0.06)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.4)] space-y-3 sm:space-y-3.5"
       >
@@ -516,7 +516,7 @@ export default function SendComposer() {
             {/* Color Toggle */}
             <div>
               <span className="text-[10px] font-semibold text-slate-500 dark:text-zinc-400 block mb-1">Color</span>
-              <div className="relative flex p-0.5 rounded-xl bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 h-9 items-center">
+              <div className="relative flex p-0.5 rounded-xl bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 h-10 items-center">
                 <button
                   type="button"
                   onClick={() => { sound.toggleSnap(); setColorMode('bw'); }}
@@ -553,7 +553,7 @@ export default function SendComposer() {
             {/* Sides / Duplex */}
             <div>
               <span className="text-[10px] font-semibold text-slate-500 dark:text-zinc-400 block mb-1">Sides</span>
-              <div className="relative flex p-0.5 rounded-xl bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 h-9 items-center">
+              <div className="relative flex p-0.5 rounded-xl bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 h-10 items-center">
                 <button
                   type="button"
                   onClick={() => { sound.toggleSnap(); setSides('single'); }}
@@ -590,11 +590,11 @@ export default function SendComposer() {
             {/* Copies Counter - Mobile: col-span-2, Desktop: col-span-1 */}
             <div className="col-span-2 sm:col-span-1">
               <span className="text-[10px] font-semibold text-slate-500 dark:text-zinc-400 block mb-1">Copies</span>
-              <div className="flex items-center justify-between p-1 rounded-xl bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 h-9">
+              <div className="flex items-center justify-between p-1 rounded-xl bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 h-10">
                 <button
                   type="button"
                   onClick={() => { sound.toggleSnap(); setCopies(Math.max(1, copies - 1)); }}
-                  className="w-7 h-7 rounded-lg bg-white dark:bg-zinc-700 flex items-center justify-center text-slate-700 dark:text-zinc-200 shadow-xs cursor-pointer touch-manipulation hover:bg-slate-50 dark:hover:bg-zinc-600 transition-colors shrink-0"
+                  className="w-8 h-8 rounded-lg bg-white dark:bg-zinc-700 flex items-center justify-center text-slate-700 dark:text-zinc-200 shadow-xs cursor-pointer touch-manipulation hover:bg-slate-50 dark:hover:bg-zinc-600 transition-colors shrink-0"
                 >
                   <Minus className="w-3.5 h-3.5" />
                 </button>
@@ -604,7 +604,7 @@ export default function SendComposer() {
                 <button
                   type="button"
                   onClick={() => { sound.toggleSnap(); setCopies(Math.min(20, copies + 1)); }}
-                  className="w-7 h-7 rounded-lg bg-white dark:bg-zinc-700 flex items-center justify-center text-slate-700 dark:text-zinc-200 shadow-xs cursor-pointer touch-manipulation hover:bg-slate-50 dark:hover:bg-zinc-600 transition-colors shrink-0"
+                  className="w-8 h-8 rounded-lg bg-white dark:bg-zinc-700 flex items-center justify-center text-slate-700 dark:text-zinc-200 shadow-xs cursor-pointer touch-manipulation hover:bg-slate-50 dark:hover:bg-zinc-600 transition-colors shrink-0"
                 >
                   <Plus className="w-3.5 h-3.5" />
                 </button>

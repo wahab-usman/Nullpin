@@ -46,7 +46,7 @@ export default function KineticPinKeypad() {
   const currentPinStr = pinDigits.join('');
 
   return (
-    <div className="w-full max-w-[520px] mx-auto flex flex-col items-center">
+    <div className="w-full max-w-[500px] mx-auto flex flex-col items-center">
       {/* Hidden real input for native hardware/mobile keyboard support */}
       <input
         ref={hiddenInputRef}
@@ -69,7 +69,7 @@ export default function KineticPinKeypad() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25, ease: 'easeOut' }}
         onClick={handleBoxClick}
-        className={`w-full max-w-[520px] p-4 sm:p-6 rounded-2xl sm:rounded-3xl backdrop-blur-xl transition-all duration-200 cursor-pointer select-none
+        className={`w-full max-w-[500px] p-4 sm:p-5 rounded-2xl sm:rounded-3xl backdrop-blur-xl transition-all duration-200 cursor-pointer select-none
           ${
             pinError
               ? 'border-2 border-rose-500/80 bg-rose-500/[0.04]'
@@ -121,7 +121,7 @@ export default function KineticPinKeypad() {
                   }`}
               >
                 {isFilled ? (
-                  <span className="font-mono font-extrabold text-3xl sm:text-4xl tracking-tighter select-none">
+                  <span className="font-mono font-extrabold text-2xl sm:text-4xl tracking-tighter select-none">
                     {digit}
                   </span>
                 ) : (
