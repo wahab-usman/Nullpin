@@ -49,6 +49,19 @@ export default function PrintStudio() {
   const allAreZip = filesList.length > 0 && filesList.every(isZipFile);
   const isSingleZip = !isMultiFile && isZipFile(drop?.file);
 
+  // Runtime environment detection: Enforces strict zero-download print-only mode on Desktop / PC
+  const isElectron =
+    typeof window !== 'undefined' &&
+    (window.navigator.userAgent.toLowerCase().includes('electron') ||
+      window.location.protocol === 'file:');
+
+  const isMobileDevice =
+    typeof window !== 'undefined' &&
+    !isElectron &&
+    /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+      window.navigator.userAgent
+    );
+
   // Multi-file queue progress calculation
   const unprintedFiles = filesList.filter((f) => !printedFileIds.has(f.id || f.name));
   const nextTargetFile = unprintedFiles.length > 0 ? unprintedFiles[0] : filesList[0];
@@ -365,7 +378,7 @@ export default function PrintStudio() {
                     </div>
 
                     <div className="flex items-center gap-1.5 shrink-0">
-                      {!isZip && (
+                      {!isZip && isMobileDevice && (
                         <button
                           type="button"
                           title="Save to Device"
@@ -494,7 +507,9 @@ export default function PrintStudio() {
           <span className="text-[10px] sm:text-[11px] font-mono">
             {isSingleZip || allAreZip
               ? 'Zero-Trace Buffer: Decrypted directly into memory and purged on complete.'
-              : 'Zero-Disk Stream: Transferred directly to the local printer driver without saving to downloads.'}
+              : isMobileDevice
+              ? 'Zero-Trace RAM Stream: Ready to print direct or save to mobile storage.'
+              : 'Zero-Download Stream: Transferred directly to local printer spooler without saving to PC storage.'}
           </span>
         </div>
 
@@ -556,8 +571,8 @@ export default function PrintStudio() {
               <ArrowRight className="w-4 h-4 text-emerald-100 group-hover:translate-x-0.5 transition-transform shrink-0" />
             </button>
           ) : (
-            /* Dual Actions: Print Direct from RAM + Save to Device */
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            /* Action Buttons: Strict Print-Only on Desktop, Dual Print + Save on Mobile */
+            <div className={isMobileDevice ? "grid grid-cols-1 sm:grid-cols-2 gap-2.5" : "w-full"}>
               {/* 1. Print Button */}
               <button
                 type="button"
@@ -595,18 +610,20 @@ export default function PrintStudio() {
                 )}
               </button>
 
-              {/* 2. Save to Device Button */}
-              <button
-                type="button"
-                onClick={isMultiFile ? handleSaveAllToDevice : () => handleSaveToDevice()}
-                disabled={isPrinting || isVaporizing}
-                className="relative overflow-hidden w-full py-3 sm:py-3.5 px-4 rounded-xl font-bold text-slate-800 dark:text-zinc-200 text-xs sm:text-sm bg-slate-100 hover:bg-slate-200/80 dark:bg-zinc-800 dark:hover:bg-zinc-700/80 active:scale-[0.98] transition-all border border-slate-300/80 dark:border-zinc-700 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 min-h-[46px] touch-manipulation shadow-xs"
-              >
-                <Download className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                <span className="truncate">
-                  {isMultiFile ? `Save All (${filesList.length})` : 'Save to Device'}
-                </span>
-              </button>
+              {/* 2. Save to Device Button (Strictly Mobile Only) */}
+              {isMobileDevice && (
+                <button
+                  type="button"
+                  onClick={isMultiFile ? handleSaveAllToDevice : () => handleSaveToDevice()}
+                  disabled={isPrinting || isVaporizing}
+                  className="relative overflow-hidden w-full py-3 sm:py-3.5 px-4 rounded-xl font-bold text-slate-800 dark:text-zinc-200 text-xs sm:text-sm bg-slate-100 hover:bg-slate-200/80 dark:bg-zinc-800 dark:hover:bg-zinc-700/80 active:scale-[0.98] transition-all border border-slate-300/80 dark:border-zinc-700 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 min-h-[46px] touch-manipulation shadow-xs"
+                >
+                  <Download className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <span className="truncate">
+                    {isMultiFile ? `Save All (${filesList.length})` : 'Save to Device'}
+                  </span>
+                </button>
+              )}
             </div>
           )}
 
