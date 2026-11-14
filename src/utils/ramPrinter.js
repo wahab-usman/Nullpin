@@ -347,7 +347,8 @@ export async function printFromRam(dropData, onPrintComplete) {
       return;
     }
 
-    iframe.src = dropData.blobUrl;
+    const pdfParams = '#toolbar=0&navpanes=0&scrollbar=0';
+    iframe.src = dropData.blobUrl.includes('#') ? dropData.blobUrl : `${dropData.blobUrl}${pdfParams}`;
 
     let printDispatched = false;
     const triggerPdfPrint = () => {

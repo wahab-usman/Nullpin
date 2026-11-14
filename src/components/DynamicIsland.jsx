@@ -13,7 +13,7 @@ import { sound } from '../utils/sound';
 // Paste your direct .apk or .exe URLs below whenever your builds are ready:
 // =========================================================================
 export const APP_DOWNLOAD_LINKS = {
-  androidApk: "/NullPin.apk",
+  androidApk: "https://github.com/wahab-usman/Nullpin/releases/download/v1.0.0/NullPin.apk",
   windowsExe: "https://github.com/wahab-usman/Nullpin/releases/download/v1.0.0/NullPin-Setup.exe",
   version: "v1.0.0"
 };
@@ -32,13 +32,15 @@ export default function DynamicIsland() {
   const [showDownloadMenu, setShowDownloadMenu] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
 
-  // Detect if running inside installed Windows Electron .EXE or installed Android PWA/APK
+  // Detect if running inside installed Windows Electron .EXE, native Android Capacitor app, or standalone PWA
   const isStandaloneApp =
     typeof window !== 'undefined' &&
     (window.navigator.userAgent.toLowerCase().includes('electron') ||
       window.location.protocol === 'file:' ||
       window.matchMedia('(display-mode: standalone)').matches ||
-      window.navigator.standalone === true);
+      window.navigator.standalone === true ||
+      window.Capacitor?.isNativePlatform?.() ||
+      window.Capacitor?.isNativePlatform === true);
 
   const hasActivePin = activeDrop && activeDrop.pin && currentView === 'ticket';
   const isTimeLow = timeLeft <= 60;

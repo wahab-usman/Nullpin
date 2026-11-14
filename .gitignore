@@ -11,6 +11,11 @@ dist-ssr
 release
 release/
 
+# Android build outputs
+android/.gradle
+android/build
+android/app/build
+
 # Environment files & secret keys (CRITICAL - NEVER COMMIT)
 .env
 .env.local

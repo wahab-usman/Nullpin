@@ -55,12 +55,16 @@ export default function PrintStudio() {
     (window.navigator.userAgent.toLowerCase().includes('electron') ||
       window.location.protocol === 'file:');
 
-  const isMobileDevice =
+  const isCapacitorNative =
     typeof window !== 'undefined' &&
-    !isElectron &&
-    /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-      window.navigator.userAgent
-    );
+    (window.Capacitor?.isNativePlatform?.() || window.Capacitor?.isNativePlatform === true);
+
+  const isMobileDevice =
+    (typeof window !== 'undefined' &&
+      !isElectron &&
+      /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+        window.navigator.userAgent
+      )) || isCapacitorNative;
 
   // Multi-file queue progress calculation
   const unprintedFiles = filesList.filter((f) => !printedFileIds.has(f.id || f.name));
@@ -276,6 +280,19 @@ export default function PrintStudio() {
     }, 800);
   }, [autoBurnTimer, triggerVaporize]);
 
+  // Block Ctrl+S / Cmd+S on desktop to enforce strict Zero-Download policy
+  useEffect(() => {
+    if (isMobileDevice) return;
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isMobileDevice]);
+
   if (!drop) return null;
 
   const prefs = drop.prefs || {};
@@ -283,7 +300,12 @@ export default function PrintStudio() {
   const fileName = drop.file?.name || (isIdCard ? 'National / Student ID Card' : 'Academic_Document.pdf');
 
   return (
-    <div className="w-full max-w-[500px] mx-auto flex flex-col items-center py-1 select-none">
+    <div 
+      className="w-full max-w-[500px] mx-auto flex flex-col items-center py-1 select-none"
+      onContextMenu={(e) => {
+        if (!isMobileDevice) e.preventDefault();
+      }}
+    >
       <motion.div
         animate={
           isVaporizing
