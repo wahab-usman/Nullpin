@@ -43,3 +43,4 @@ foreach ($folder in $mipmapSizes.Keys) {
 
 $srcBmp.Dispose()
 Write-Host "All Android mipmap icons generated successfully!"
+

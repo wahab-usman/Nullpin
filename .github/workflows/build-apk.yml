@@ -24,10 +24,10 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Setup Node.js 20
+      - name: Setup Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
       - name: Cache Gradle Packages
@@ -50,11 +50,12 @@ jobs:
         run: npx cap sync android
 
       - name: Make Gradle Executable
-        run: chmod +x ./android/gradlew
+        run: chmod +x android/gradlew
 
       - name: Build Standalone Signed Android APK
         run: |
           cd android
+          chmod +x gradlew
           ./gradlew assembleRelease --no-daemon --stacktrace
           cd ..
           if [ -f "android/app/build/outputs/apk/release/app-release.apk" ]; then
@@ -80,3 +81,4 @@ jobs:
         with:
           name: NullPin-Android-APK
           path: NullPin.apk
+
