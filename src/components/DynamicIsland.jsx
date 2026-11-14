@@ -13,8 +13,8 @@ import { sound } from '../utils/sound';
 // Paste your direct .apk or .exe URLs below whenever your builds are ready:
 // =========================================================================
 export const APP_DOWNLOAD_LINKS = {
-  androidApk: "", // Paste .apk direct link here in the future (e.g. "https://domain.com/nullpin.apk")
-  windowsExe: "", // Paste .exe installer link here in the future (e.g. "https://domain.com/nullpin-setup.exe")
+  androidApk: "https://github.com/wahab-usman/Nullpin/releases/download/v1.0.0/NullPin.apk",
+  windowsExe: "https://github.com/wahab-usman/Nullpin/releases/download/v1.0.0/NullPin-Setup.exe",
   version: "v1.0.0"
 };
 
