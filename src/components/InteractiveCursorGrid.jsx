@@ -73,25 +73,22 @@ export default function InteractiveCursorGrid({ isDark }) {
       ctx.clearRect(0, 0, width, height);
 
       const gridSize = 20; // High-density dot matrix spacing (more than 3x more dots!)
-      const spotlightRadius = 300; // 300px wide illumination aura
+      const spotlightRadius = 280; // 280px wide illumination aura
       const spotlightRadiusSq = spotlightRadius * spotlightRadius;
 
       // 1. Ambient Radial Glow behind the cursor
       if (isInside && currentX > -500) {
-        // Outer diffused spotlight glow
         const glowGrad = ctx.createRadialGradient(
           currentX, currentY, 0,
           currentX, currentY, spotlightRadius * 1.2
         );
         if (isDark) {
-          glowGrad.addColorStop(0, 'rgba(16, 185, 129, 0.35)');
-          glowGrad.addColorStop(0.35, 'rgba(16, 185, 129, 0.16)');
-          glowGrad.addColorStop(0.70, 'rgba(16, 185, 129, 0.05)');
+          glowGrad.addColorStop(0, 'rgba(16, 185, 129, 0.20)');
+          glowGrad.addColorStop(0.45, 'rgba(16, 185, 129, 0.08)');
           glowGrad.addColorStop(1, 'rgba(16, 185, 129, 0)');
         } else {
-          glowGrad.addColorStop(0, 'rgba(16, 185, 129, 0.26)');
-          glowGrad.addColorStop(0.35, 'rgba(16, 185, 129, 0.12)');
-          glowGrad.addColorStop(0.70, 'rgba(16, 185, 129, 0.04)');
+          glowGrad.addColorStop(0, 'rgba(16, 185, 129, 0.16)');
+          glowGrad.addColorStop(0.45, 'rgba(16, 185, 129, 0.06)');
           glowGrad.addColorStop(1, 'rgba(16, 185, 129, 0)');
         }
 
@@ -99,31 +96,14 @@ export default function InteractiveCursorGrid({ isDark }) {
         ctx.beginPath();
         ctx.arc(currentX, currentY, spotlightRadius * 1.2, 0, Math.PI * 2);
         ctx.fill();
-
-        // Inner vibrant core directly under cursor tip
-        const coreGrad = ctx.createRadialGradient(
-          currentX, currentY, 0,
-          currentX, currentY, 90
-        );
-        if (isDark) {
-          coreGrad.addColorStop(0, 'rgba(52, 211, 153, 0.22)');
-          coreGrad.addColorStop(1, 'rgba(52, 211, 153, 0)');
-        } else {
-          coreGrad.addColorStop(0, 'rgba(16, 185, 129, 0.16)');
-          coreGrad.addColorStop(1, 'rgba(16, 185, 129, 0)');
-        }
-        ctx.fillStyle = coreGrad;
-        ctx.beginPath();
-        ctx.arc(currentX, currentY, 90, 0, Math.PI * 2);
-        ctx.fill();
       }
 
       // Colors for passive dots
-      // Dark mode: subtle zinc dots
-      // Light mode: subtle slate dots
+      // Dark mode: visible crisp zinc dots
+      // Light mode: visible crisp slate dots
       const passiveColor = isDark
-        ? 'rgba(255, 255, 255, 0.09)'
-        : 'rgba(30, 41, 59, 0.13)';
+        ? 'rgba(255, 255, 255, 0.18)'
+        : 'rgba(30, 41, 59, 0.28)';
 
       const baseDotRadius = 1.05;
 
@@ -162,17 +142,17 @@ export default function InteractiveCursorGrid({ isDark }) {
           const easeIntensity = intensity * intensity; // quadratic ease for natural falloff
 
           // Size expands slightly as cursor gets closer
-          const r = baseDotRadius + easeIntensity * 1.35;
+          const r = baseDotRadius + easeIntensity * 1.1;
 
           ctx.beginPath();
           ctx.arc(x, y, r, 0, Math.PI * 2);
 
           if (isDark) {
             // Dark mode: vibrant neon emerald (#10b981 / #34d399)
-            ctx.fillStyle = `rgba(52, 211, 153, ${0.45 + easeIntensity * 0.55})`;
+            ctx.fillStyle = `rgba(52, 211, 153, ${0.35 + easeIntensity * 0.65})`;
           } else {
             // Light mode: deep emerald green (#059669)
-            ctx.fillStyle = `rgba(5, 150, 105, ${0.48 + easeIntensity * 0.52})`;
+            ctx.fillStyle = `rgba(5, 150, 105, ${0.40 + easeIntensity * 0.60})`;
           }
           ctx.fill();
         }
