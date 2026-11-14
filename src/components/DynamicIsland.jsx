@@ -5,7 +5,7 @@ import {
   Download, Smartphone, Monitor, ChevronDown, Shield
 } from 'lucide-react';
 import { useTheme } from '../store/ThemeContext';
-import { useNullPin } from '../store/NullPinContext';
+import { useNullPin, useNullPinTimer } from '../store/NullPinContext';
 import { sound } from '../utils/sound';
 
 // =========================================================================
@@ -26,7 +26,8 @@ function formatTime(seconds) {
 
 export default function DynamicIsland() {
   const { isDark, toggle } = useTheme();
-  const { activeDrop, timeLeft, soundEnabled, toggleSound, currentView } = useNullPin();
+  const { activeDrop, soundEnabled, toggleSound, currentView } = useNullPin();
+  const { timeLeft } = useNullPinTimer();
   const [copied, setCopied] = useState(false);
   const [showDownloadMenu, setShowDownloadMenu] = useState(false);
   const [toastMessage, setToastMessage] = useState('');

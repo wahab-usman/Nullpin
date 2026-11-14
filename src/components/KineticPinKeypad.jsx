@@ -1,11 +1,12 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShieldCheck, AlertCircle, Lock } from 'lucide-react';
+import { ShieldCheck, AlertCircle, Lock, Loader2 } from 'lucide-react';
 import { useNullPin } from '../store/NullPinContext';
 import { sound } from '../utils/sound';
 
 export default function KineticPinKeypad() {
   const { pinDigits, setPinDigits, pinError, unlockWithPin } = useNullPin();
+  const [isUnlocking, setIsUnlocking] = useState(false);
   const hiddenInputRef = useRef(null);
 
   // Focus input automatically on mount
@@ -15,6 +16,7 @@ export default function KineticPinKeypad() {
 
   // Update digits from string
   const handleInputChange = (e) => {
+    if (isUnlocking) return;
     const rawVal = e.target.value.replace(/[^0-9]/g, '').slice(0, 4);
     sound.keyPress();
 
@@ -24,15 +26,27 @@ export default function KineticPinKeypad() {
     }
     setPinDigits(arr);
 
-    // Auto-unlock upon 4th digit
+    // Auto-unlock upon 4th digit with loading feedback
     if (rawVal.length === 4) {
-      setTimeout(() => {
-        unlockWithPin(rawVal);
+      setIsUnlocking(true);
+      setTimeout(async () => {
+        try {
+          const success = await unlockWithPin(rawVal);
+          if (!success) {
+            setIsUnlocking(false);
+          }
+        } catch (err) {
+          setIsUnlocking(false);
+        }
       }, 100);
     }
   };
 
   const handleKeyDown = (e) => {
+    if (isUnlocking) {
+      e.preventDefault();
+      return;
+    }
     if (e.key === 'Backspace') {
       sound.toggleSnap();
     }
@@ -40,7 +54,9 @@ export default function KineticPinKeypad() {
 
   // Click card to focus input
   const handleBoxClick = () => {
-    hiddenInputRef.current?.focus();
+    if (!isUnlocking) {
+      hiddenInputRef.current?.focus();
+    }
   };
 
   const currentPinStr = pinDigits.join('');
@@ -58,6 +74,7 @@ export default function KineticPinKeypad() {
         value={currentPinStr}
         onChange={handleInputChange}
         onKeyDown={handleKeyDown}
+        disabled={isUnlocking}
         className="sr-only"
         style={{ fontSize: '16px' }}
         autoFocus
@@ -73,6 +90,8 @@ export default function KineticPinKeypad() {
           ${
             pinError
               ? 'border-2 border-rose-500/80 bg-rose-500/[0.04]'
+              : isUnlocking
+              ? 'border-2 border-emerald-500/60 bg-emerald-500/[0.02] shadow-[0_20px_50px_rgba(16,185,129,0.15)]'
               : 'border border-slate-200/90 dark:border-white/10 bg-white/80 dark:bg-zinc-900/75 shadow-[0_20px_50px_rgba(0,0,0,0.06)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.4)]'
           }`}
       >
@@ -132,10 +151,21 @@ export default function KineticPinKeypad() {
           })}
         </motion.div>
 
-        {/* Status text or Error */}
-        <div className="h-5 mb-4 flex items-center justify-center text-center">
+        {/* Status text, Loading state, or Error */}
+        <div className="h-6 mb-2 flex items-center justify-center text-center">
           <AnimatePresence mode="wait">
-            {pinError ? (
+            {isUnlocking ? (
+              <motion.div
+                key="loading"
+                initial={{ opacity: 0, y: -2 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -2 }}
+                className="flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400"
+              >
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-500" />
+                <span>Decrypting & pulling payload into RAM...</span>
+              </motion.div>
+            ) : pinError ? (
               <motion.div
                 key="err"
                 initial={{ opacity: 0, y: -4 }}

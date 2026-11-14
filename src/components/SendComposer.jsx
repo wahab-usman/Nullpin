@@ -13,6 +13,10 @@ const MODES = [
   { key: 'idcard', label: 'ID Card A4', icon: CreditCard },
 ];
 
+const MAX_FILES_LIMIT = 15;
+const MAX_SINGLE_FILE_BYTES = 25 * 1024 * 1024; // 25 MB
+const MAX_TOTAL_PAYLOAD_BYTES = 50 * 1024 * 1024; // 50 MB
+
 function formatBytes(bytes) {
   if (!bytes || bytes === 0) return '0 B';
   if (bytes < 1024) return bytes + ' B';
@@ -69,7 +73,7 @@ export default function SendComposer() {
   // Drag and drop handler
   const [dragOver, setDragOver] = useState(false);
 
-  // Process incoming files from file picker or drag-and-drop
+  // Process incoming files from file picker or drag-and-drop with pre-flight bounds
   const processIncomingFiles = useCallback((rawIncomingFiles) => {
     if (!rawIncomingFiles || rawIncomingFiles.length === 0) return;
     const filesArray = Array.from(rawIncomingFiles);
@@ -89,22 +93,65 @@ export default function SendComposer() {
     const validFiles = filesArray.filter((f) => !isVideoFile(f));
     if (validFiles.length === 0) return;
 
-    sound.toggleSnap();
-    if (videoFiles.length === 0) setDropError('');
+    // 3. Pre-flight check: Max single file size (25 MB)
+    const oversizedFiles = validFiles.filter((f) => (f.size || 0) > MAX_SINGLE_FILE_BYTES);
+    if (oversizedFiles.length > 0) {
+      sound.vaporize();
+      setDropError(
+        `"${oversizedFiles[0].name}" exceeds the 25 MB limit. Please compress or remove large files.`
+      );
+      setTimeout(() => setDropError(''), 4500);
+    }
+    const sizeCompliantFiles = validFiles.filter((f) => (f.size || 0) <= MAX_SINGLE_FILE_BYTES);
+    if (sizeCompliantFiles.length === 0) return;
 
-    const newEntries = validFiles.map((f) => {
-      const url = URL.createObjectURL(f);
-      return {
-        id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-        name: f.name,
-        size: f.size,
-        type: f.type || 'application/octet-stream',
-        rawFile: f,
-        blobUrl: url,
-      };
+    setFilesList((prev) => {
+      // 4. Pre-flight check: Max file count (15 files)
+      const currentCount = prev.length;
+      const availableSlots = Math.max(0, MAX_FILES_LIMIT - currentCount);
+      if (sizeCompliantFiles.length > availableSlots) {
+        sound.vaporize();
+        setDropError(`Maximum ${MAX_FILES_LIMIT} files allowed per drop. Excess files were omitted.`);
+        setTimeout(() => setDropError(''), 4500);
+      }
+      const countCompliantFiles = sizeCompliantFiles.slice(0, availableSlots);
+      if (countCompliantFiles.length === 0) return prev;
+
+      // 5. Pre-flight check: Max total payload size (50 MB)
+      let runningTotal = prev.reduce((acc, f) => acc + (f.size || 0), 0);
+      const finalAccepted = [];
+
+      for (const f of countCompliantFiles) {
+        if (runningTotal + (f.size || 0) <= MAX_TOTAL_PAYLOAD_BYTES) {
+          runningTotal += (f.size || 0);
+          finalAccepted.push(f);
+        } else {
+          sound.vaporize();
+          setDropError('Total payload exceeds the 50 MB limit. Remaining files were omitted.');
+          setTimeout(() => setDropError(''), 4500);
+          break;
+        }
+      }
+
+      if (finalAccepted.length === 0) return prev;
+
+      sound.toggleSnap();
+      if (videoFiles.length === 0 && oversizedFiles.length === 0) setDropError('');
+
+      const newEntries = finalAccepted.map((f) => {
+        const url = URL.createObjectURL(f);
+        return {
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+          name: f.name,
+          size: f.size,
+          type: f.type || 'application/octet-stream',
+          rawFile: f,
+          blobUrl: url,
+        };
+      });
+
+      return [...prev, ...newEntries];
     });
-
-    setFilesList((prev) => [...prev, ...newEntries]);
   }, []);
 
   const handleFileDrop = useCallback((e) => {
@@ -160,6 +207,12 @@ export default function SendComposer() {
       if (isVideoFile(f)) {
         sound.vaporize();
         setDropError('Video files are not allowed. Please upload an image (PNG, JPG) for the ID card.');
+        setTimeout(() => setDropError(''), 4000);
+        return;
+      }
+      if (f.size > MAX_SINGLE_FILE_BYTES) {
+        sound.vaporize();
+        setDropError('ID card image exceeds 25 MB limit. Please compress before uploading.');
         setTimeout(() => setDropError(''), 4000);
         return;
       }

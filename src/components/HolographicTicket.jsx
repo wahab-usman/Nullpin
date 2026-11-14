@@ -2,10 +2,10 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Copy, Check, Flame, Clock, 
-  FileText, CreditCard, ShieldCheck, Printer, Files, FileArchive
+  FileText, CreditCard, ShieldCheck, Printer, Files, FileArchive, Loader2
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { useNullPin } from '../store/NullPinContext';
+import { useNullPin, useNullPinTimer } from '../store/NullPinContext';
 import { sound } from '../utils/sound';
 
 function formatTime(seconds) {
@@ -36,9 +36,10 @@ function isZipFile(file) {
 export default function HolographicTicket() {
   const { 
     activeDrop, 
-    timeLeft, 
     triggerVaporize, 
+    uploadState 
   } = useNullPin();
+  const { timeLeft } = useNullPinTimer();
 
   const [copied, setCopied] = useState(false);
 
@@ -116,6 +117,42 @@ export default function HolographicTicket() {
             <span>{formatTime(timeLeft)}</span>
           </div>
         </div>
+
+        {/* LIVE CLOUD VAULT SYNC TELEMETRY BAR */}
+        {uploadState && uploadState.status !== 'idle' && (
+          <div className="mx-4 sm:mx-6 mt-3 p-2.5 rounded-xl bg-slate-100/80 dark:bg-zinc-800/60 border border-slate-200/80 dark:border-zinc-700/60 text-left">
+            <div className="flex items-center justify-between text-[11px] font-mono mb-1.5">
+              <span className="flex items-center gap-1.5 font-semibold text-slate-700 dark:text-zinc-200">
+                {uploadState.status === 'synced' ? (
+                  <>
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="text-emerald-600 dark:text-emerald-400">🟢 Cloud Vault Ready — Instant 4G Unlock Active</span>
+                  </>
+                ) : uploadState.status === 'error' ? (
+                  <>
+                    <span className="w-2 h-2 rounded-full bg-amber-500" />
+                    <span className="text-amber-600 dark:text-amber-400">Offline / Local RAM Pipe Active</span>
+                  </>
+                ) : (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-500" />
+                    <span>Syncing to Cloud Vault: {uploadState.percent}% ({uploadState.currentFile}/{uploadState.totalFiles} files)...</span>
+                  </>
+                )}
+              </span>
+              <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                {uploadState.percent}%
+              </span>
+            </div>
+            {/* Progress bar line */}
+            <div className="w-full h-1.5 rounded-full bg-slate-200 dark:bg-zinc-700 overflow-hidden">
+              <div
+                className="h-full bg-emerald-500 transition-all duration-300 rounded-full"
+                style={{ width: `${Math.max(5, uploadState.percent)}%` }}
+              />
+            </div>
+          </div>
+        )}
 
         {/* 4-DIGIT PIN SHOWCASE */}
         <div className="px-4 sm:px-6 pt-4 sm:pt-5 pb-3 sm:pb-4 text-center">

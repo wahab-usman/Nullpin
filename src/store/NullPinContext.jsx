@@ -13,11 +13,13 @@ import {
   fetchDropFromSupabase,
   burnDropInSupabase,
   subscribeToSupabaseDrop,
-  cleanupExpiredDrops
+  cleanupExpiredDrops,
+  generateCollisionFreePin
 } from '../utils/supabaseService';
 import { isSupabaseConfigured } from '../utils/supabaseClient';
 
 const NullPinContext = createContext(null);
+const NullPinTimerContext = createContext({ timeLeft: 300, isTimerActive: false });
 
 export function useNullPin() {
   const ctx = useContext(NullPinContext);
@@ -25,8 +27,9 @@ export function useNullPin() {
   return ctx;
 }
 
-function generatePin() {
-  return String(Math.floor(1000 + Math.random() * 9000));
+export function useNullPinTimer() {
+  const ctx = useContext(NullPinTimerContext);
+  return ctx || { timeLeft: 300, isTimerActive: false };
 }
 
 function resolveFileType(file) {
@@ -69,6 +72,15 @@ export function NullPinProvider({ children }) {
   // Audio mute toggle
   const [soundEnabled, setSoundEnabled] = useState(true);
 
+  // Live cloud sync telemetry state
+  const [uploadState, setUploadState] = useState({
+    status: 'idle', // 'idle' | 'compressing' | 'uploading' | 'synced' | 'error'
+    percent: 0,
+    currentFile: 0,
+    totalFiles: 0,
+    message: '',
+  });
+
   // 5-Minute countdown tick
   useEffect(() => {
     let interval = null;
@@ -94,8 +106,9 @@ export function NullPinProvider({ children }) {
   }, []);
 
   // Create a new drop
-  const createDrop = useCallback((data) => {
-    const pin = generatePin();
+  const createDrop = useCallback(async (data) => {
+    // 1. Generate guaranteed collision-free 4-digit PIN (1000-9999)
+    const pin = await generateCollisionFreePin();
     const mode = data.mode || 'doc';
 
     // 1. Establish multi-file list and memory blob URLs
@@ -190,11 +203,20 @@ export function NullPinProvider({ children }) {
     // Synchronize to other browser tabs/windows immediately
     saveDropRecord(newDrop);
 
-    // Upload to Supabase cloud storage & database if configured
-    // and run background garbage collector
+    // Upload to Supabase cloud storage & database with live telemetry
     if (isSupabaseConfigured()) {
       cleanupExpiredDrops().catch(() => {});
-      uploadDropToSupabase(newDrop);
+      uploadDropToSupabase(newDrop, (progress) => {
+        setUploadState(progress);
+      });
+    } else {
+      setUploadState({
+        status: 'synced',
+        percent: 100,
+        currentFile: files.length,
+        totalFiles: files.length,
+        message: 'Volatile RAM Mode Ready',
+      });
     }
 
     return pin;
@@ -361,6 +383,7 @@ export function NullPinProvider({ children }) {
       setUnlockedDrop((prev) => (prev ? { ...prev, status: 'burned' } : null));
     }
     setIsTimerActive(false);
+    setUploadState({ status: 'idle', percent: 0, currentFile: 0, totalFiles: 0, message: '' });
 
     // Return to clean portal after disintegration
     setTimeout(() => {
@@ -445,9 +468,9 @@ export function NullPinProvider({ children }) {
         pinDigits,
         setPinDigits,
         pinError,
-        timeLeft,
         isTimerActive,
         soundEnabled,
+        uploadState,
         createDrop,
         loadPreset,
         unlockWithPin,
@@ -456,7 +479,9 @@ export function NullPinProvider({ children }) {
         toggleSound,
       }}
     >
-      {children}
+      <NullPinTimerContext.Provider value={{ timeLeft, isTimerActive }}>
+        {children}
+      </NullPinTimerContext.Provider>
     </NullPinContext.Provider>
   );
 }

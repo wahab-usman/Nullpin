@@ -89,6 +89,30 @@ export async function saveDropRecord(drop) {
   }
 }
 
+// Registry of active Blob URLs per PIN to prevent memory leaks across multiple reads
+const activeCrossTabUrls = new Map(); // pin -> Set<string>
+
+function registerUrlForPin(pin, url) {
+  if (!url) return;
+  const p = String(pin).trim();
+  if (!activeCrossTabUrls.has(p)) {
+    activeCrossTabUrls.set(p, new Set());
+  }
+  activeCrossTabUrls.get(p).add(url);
+}
+
+export function revokeUrlsForPin(pin) {
+  const p = String(pin).trim();
+  if (activeCrossTabUrls.has(p)) {
+    activeCrossTabUrls.get(p).forEach((url) => {
+      try {
+        URL.revokeObjectURL(url);
+      } catch (e) {}
+    });
+    activeCrossTabUrls.delete(p);
+  }
+}
+
 /**
  * Looks up a drop by 4-digit PIN across all tabs
  */
@@ -113,6 +137,9 @@ export async function getDropRecord(pin) {
       return null;
     }
 
+    // Revoke any previously minted URLs for this PIN to avoid leaks
+    revokeUrlsForPin(searchPin);
+
     // Reconstruct memory blob URLs for all files
     const rawBlobs = Array.isArray(record.rawBlobs) && record.rawBlobs.length > 0
       ? record.rawBlobs
@@ -124,7 +151,11 @@ export async function getDropRecord(pin) {
 
     const reconstructedFiles = metaList.map((meta, idx) => {
       const blob = rawBlobs[idx] || (rawBlobs.length === 1 ? rawBlobs[0] : null);
-      const url = blob ? URL.createObjectURL(blob) : null;
+      let url = null;
+      if (blob) {
+        url = URL.createObjectURL(blob);
+        registerUrlForPin(searchPin, url);
+      }
       return {
         id: meta.id || `file-${idx}`,
         name: meta.name || `Document_${idx + 1}.pdf`,
@@ -136,15 +167,21 @@ export async function getDropRecord(pin) {
     });
 
     const primaryFile = reconstructedFiles[0] || null;
-    const primaryBlobUrl = primaryFile?.blobUrl || (record.rawBlob ? URL.createObjectURL(record.rawBlob) : null);
+    let primaryBlobUrl = primaryFile?.blobUrl || null;
+    if (!primaryBlobUrl && record.rawBlob) {
+      primaryBlobUrl = URL.createObjectURL(record.rawBlob);
+      registerUrlForPin(searchPin, primaryBlobUrl);
+    }
 
     let frontBlobUrl = null;
     if (record.frontBlob) {
       frontBlobUrl = URL.createObjectURL(record.frontBlob);
+      registerUrlForPin(searchPin, frontBlobUrl);
     }
     let backBlobUrl = null;
     if (record.backBlob) {
       backBlobUrl = URL.createObjectURL(record.backBlob);
+      registerUrlForPin(searchPin, backBlobUrl);
     }
 
     return {
@@ -205,6 +242,7 @@ export async function markDropStatus(pin, status) {
 export async function burnDropRecord(pin) {
   try {
     const searchPin = String(pin).trim();
+    revokeUrlsForPin(searchPin);
     const db = await openDB();
     const tx = db.transaction(STORE_NAME, 'readwrite');
     const store = tx.objectStore(STORE_NAME);
