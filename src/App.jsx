@@ -42,8 +42,8 @@ function AtmosphericCanvas() {
         <DynamicIsland />
       </div>
 
-      {/* Main Content Stage (Proportionally centered, fits 100% inside 768px-900px laptop screens) */}
-      <main className="relative z-10 w-full max-w-[500px] mx-auto flex-1 flex flex-col items-center justify-center my-auto py-1">
+      {/* Main Content Stage (Fixed top alignment - stops switcher and card from jumping down on Enter PIN) */}
+      <main className="relative z-10 w-full max-w-[500px] mx-auto flex-1 flex flex-col items-center justify-start pt-2.5 sm:pt-4 pb-2">
         <SpatialStage />
       </main>
 
