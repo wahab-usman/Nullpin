@@ -89,11 +89,11 @@ export default function DynamicIsland() {
               transition={{ duration: 0.15 }}
               className="inline-flex items-center gap-2 shrink-0 whitespace-nowrap"
             >
-              {/* Live PIN Quick Pill */}
+              {/* Live PIN Quick Pill (Hidden on extra-small mobile to prevent navbar crowding; visible on sm+) */}
               <button
                 type="button"
                 onClick={handleCopyPin}
-                className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full bg-emerald-500/15 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-mono text-xs font-bold cursor-pointer transition-colors whitespace-nowrap shrink-0"
+                className="hidden sm:inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full bg-emerald-500/15 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-mono text-xs font-bold cursor-pointer transition-colors whitespace-nowrap shrink-0"
                 title="Click to copy active PIN"
               >
                 <span>PIN {activeDrop.pin}</span>
@@ -246,21 +246,25 @@ export default function DynamicIsland() {
           </AnimatePresence>
           </div>
 
-          <div className="hidden sm:block w-[1px] h-4 bg-slate-300 dark:bg-zinc-800 shrink-0" />
+          <div className="w-[1px] h-4 bg-slate-300 dark:bg-zinc-800 shrink-0" />
 
-          {/* Audio FX Toggle (Desktop & Tablet) */}
+          {/* Audio FX Toggle (Permanently visible across ALL screens: mobile, tablet & desktop) */}
           <button
             type="button"
             onClick={() => {
               sound.toggleSnap();
               toggleSound();
             }}
-            className="hidden sm:flex items-center justify-center w-8 h-8 rounded-full 
-                       text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100 
-                       hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer shrink-0"
+            className="flex items-center justify-center w-8 h-8 rounded-full 
+                       hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer shrink-0 touch-manipulation"
             title={soundEnabled ? 'Mute sounds' : 'Unmute sounds'}
+            aria-label={soundEnabled ? 'Mute sounds' : 'Unmute sounds'}
           >
-            {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4 opacity-40" />}
+            {soundEnabled ? (
+              <Volume2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+            ) : (
+              <VolumeX className="w-4 h-4 text-slate-400 dark:text-zinc-500" />
+            )}
           </button>
 
           {/* Theme Switcher Button */}
