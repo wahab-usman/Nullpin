@@ -171,8 +171,18 @@ function UnlockedDock({ drop, onBurn }) {
     if (printed) return;
     setPrinted(true);
 
-    const onAfterPrint = () => {
-      window.removeEventListener('afterprint', onAfterPrint);
+    let completed = false;
+    let fallbackTimer = null;
+
+    const cleanup = () => {
+      if (completed) return;
+      completed = true;
+      if (fallbackTimer) clearTimeout(fallbackTimer);
+      try {
+        window.removeEventListener('afterprint', onAfterPrint);
+        document.removeEventListener('visibilitychange', onVisibilityChange);
+      } catch (e) {}
+
       if (drop.prefs?.burnAfterPrint) {
         setTimeout(() => {
           updateDropStatus('burned');
@@ -182,7 +192,20 @@ function UnlockedDock({ drop, onBurn }) {
       }
     };
 
+    const onAfterPrint = () => {
+      cleanup();
+    };
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        cleanup();
+      }
+    };
+
     window.addEventListener('afterprint', onAfterPrint, { once: true });
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    fallbackTimer = setTimeout(cleanup, 3500);
+
     window.print();
   }, [drop, updateDropStatus, onBurn, printed]);
 

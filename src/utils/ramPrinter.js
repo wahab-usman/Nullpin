@@ -174,6 +174,9 @@ function parseDocxXml(xmlStr) {
 // Module-level execution lock to strictly prevent duplicate print triggers
 let isGlobalPrintLocked = false;
 
+// Reliable mobile environment detection
+export const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
 /**
  * Primary RAM Printing Engine:
  * Creates an isolated hidden iframe that Chrome/Edge/Firefox PDFium & Layout engines
@@ -213,15 +216,26 @@ export async function printFromRam(dropData, onPrintComplete) {
 
   // State to prevent duplicate onPrintComplete triggers
   let isCompleted = false;
+  let mobileFallbackTimer = null;
+
   const finishPrint = () => {
     if (isCompleted) return;
     isCompleted = true;
     isGlobalPrintLocked = false;
 
-    // Clean up window listeners
+    if (mobileFallbackTimer) {
+      clearTimeout(mobileFallbackTimer);
+      mobileFallbackTimer = null;
+    }
+
+    // Clean up window and document listeners
     try {
       window.removeEventListener('afterprint', handleAfterPrint);
       window.removeEventListener('focus', handleFocusReturn);
+      document.removeEventListener('visibilitychange', handleVisibilityReturn);
+      if (iframe.contentWindow) {
+        iframe.contentWindow.onafterprint = null;
+      }
     } catch (e) {}
 
     // Allow the browser print spooler sufficient time to read document data from the iframe
@@ -229,7 +243,13 @@ export async function printFromRam(dropData, onPrintComplete) {
       if (typeof onPrintComplete === 'function') {
         onPrintComplete();
       }
-    }, 1000);
+    }, isMobile ? 350 : 1000);
+  };
+
+  const handleVisibilityReturn = () => {
+    if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+      setTimeout(finishPrint, 400);
+    }
   };
 
   // Listen for window returning to focus AFTER print dialog has genuinely closed
@@ -247,8 +267,8 @@ export async function printFromRam(dropData, onPrintComplete) {
       finishPrint();
     } else {
       window.addEventListener('focus', handleFocusReturn, { once: true });
-      // Generous fallback if focus event is not emitted by OS
-      setTimeout(finishPrint, 3500);
+      // Fallback if focus event is not emitted by OS
+      setTimeout(finishPrint, isMobile ? 1500 : 3500);
     }
   };
 
@@ -263,6 +283,18 @@ export async function printFromRam(dropData, onPrintComplete) {
 
     if (typeof window !== 'undefined') {
       window.addEventListener('afterprint', handleAfterPrint, { once: true });
+    }
+
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', handleVisibilityReturn);
+    }
+
+    // Mobile completion guard: mobile browsers often swallow afterprint or focus events
+    if (isMobile) {
+      mobileFallbackTimer = setTimeout(() => {
+        console.log('[NullPin RAM Print] Mobile fallback safety release triggered finishPrint');
+        finishPrint();
+      }, 2500);
     }
   };
 
@@ -291,6 +323,30 @@ export async function printFromRam(dropData, onPrintComplete) {
   // ONLY for genuine PDF files!
   // ==============================================================
   if (isPdf && dropData.blobUrl) {
+    // Mobile PDF handling: iOS Safari and Android Chrome cannot print PDF Blobs inside hidden iframes.
+    // Dispatch clean direct download or native viewer sheet, resolving within 800ms to avoid UI hang.
+    if (isMobile) {
+      console.log('[NullPin RAM Print] Mobile PDF stream: opening native viewer/download');
+      try {
+        const link = document.createElement('a');
+        link.href = dropData.blobUrl;
+        link.download = rawFileName || 'Academic_Document.pdf';
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } catch (err) {
+        console.warn('[NullPin RAM Print] Mobile PDF link error, fallback to window.open:', err);
+        window.open(dropData.blobUrl, '_blank');
+      }
+
+      setTimeout(() => {
+        finishPrint();
+      }, 800);
+      return;
+    }
+
     iframe.src = dropData.blobUrl;
 
     let printDispatched = false;
@@ -305,7 +361,7 @@ export async function printFromRam(dropData, onPrintComplete) {
           iframe.contentWindow.print();
         } catch (err) {
           console.warn('[NullPin RAM Print] PDF direct print error, fallback to HTML sheet:', err);
-          fallbackHtmlPrint(iframe, dropData, isGrayscale, finishPrint);
+          fallbackHtmlPrint(iframe, dropData, isGrayscale, attachAfterPrintListener, finishPrint);
         }
       }, 500);
     };
@@ -314,7 +370,7 @@ export async function printFromRam(dropData, onPrintComplete) {
     iframe.onerror = () => {
       if (!printDispatched) {
         printDispatched = true;
-        fallbackHtmlPrint(iframe, dropData, isGrayscale, finishPrint);
+        fallbackHtmlPrint(iframe, dropData, isGrayscale, attachAfterPrintListener, finishPrint);
       }
     };
 
@@ -577,7 +633,7 @@ export async function printFromRam(dropData, onPrintComplete) {
   }
 
   // Fallback for any other document mode — render clean verified HTML sheet
-  fallbackHtmlPrint(iframe, dropData, isGrayscale, finishPrint);
+  fallbackHtmlPrint(iframe, dropData, isGrayscale, attachAfterPrintListener, finishPrint);
 }
 
 /**
@@ -589,7 +645,9 @@ function renderHtmlAndPrint(iframe, htmlContent, onAttachListener, onComplete) {
   doc.write(htmlContent);
   doc.close();
 
-  onAttachListener();
+  if (typeof onAttachListener === 'function') {
+    onAttachListener();
+  }
 
   let printDispatched = false;
   const executePrint = () => {
@@ -643,7 +701,7 @@ function renderHtmlAndPrint(iframe, htmlContent, onAttachListener, onComplete) {
 /**
  * Fallback HTML document print when PDF blob is not directly printable
  */
-function fallbackHtmlPrint(iframe, dropData, isGrayscale, onComplete) {
+function fallbackHtmlPrint(iframe, dropData, isGrayscale, onAttachListener, onComplete) {
   const fileName = dropData.file?.name || 'Academic_Document.pdf';
   const htmlContent = `
     <!DOCTYPE html>
@@ -702,13 +760,7 @@ function fallbackHtmlPrint(iframe, dropData, isGrayscale, onComplete) {
   renderHtmlAndPrint(
     iframe,
     htmlContent,
-    () => {
-      try {
-        if (iframe.contentWindow) {
-          iframe.contentWindow.onafterprint = onComplete;
-        }
-      } catch (e) {}
-    },
+    typeof onAttachListener === 'function' ? onAttachListener : () => {},
     onComplete
   );
 }
