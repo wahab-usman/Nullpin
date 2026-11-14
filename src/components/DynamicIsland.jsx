@@ -13,7 +13,7 @@ import { sound } from '../utils/sound';
 // Paste your direct .apk or .exe URLs below whenever your builds are ready:
 // =========================================================================
 export const APP_DOWNLOAD_LINKS = {
-  androidApk: "https://github.com/wahab-usman/Nullpin/releases/download/v1.0.0/NullPin.apk",
+  androidApk: "/NullPin.apk",
   windowsExe: "https://github.com/wahab-usman/Nullpin/releases/download/v1.0.0/NullPin-Setup.exe",
   version: "v1.0.0"
 };
@@ -56,9 +56,21 @@ export default function DynamicIsland() {
   const handleDownloadClick = (type) => {
     sound.toggleSnap();
     const link = type === 'android' ? APP_DOWNLOAD_LINKS.androidApk : APP_DOWNLOAD_LINKS.windowsExe;
+    const filename = type === 'android' ? 'NullPin.apk' : 'NullPin-Setup.exe';
 
     if (link && link.trim() !== '') {
-      window.open(link, '_blank', 'noopener,noreferrer');
+      try {
+        const a = document.createElement('a');
+        a.href = link;
+        a.download = filename;
+        a.rel = 'noopener noreferrer';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      } catch {
+        window.location.href = link;
+      }
+      setShowDownloadMenu(false);
     } else {
       const name = type === 'android' ? 'Android APK' : 'Windows EXE';
       setToastMessage(`${name} build coming soon (${APP_DOWNLOAD_LINKS.version})`);
