@@ -8,6 +8,8 @@ node_modules
 # Production build output
 dist
 dist-ssr
+release
+release/
 
 # Environment files & secret keys (CRITICAL - NEVER COMMIT)
 .env
