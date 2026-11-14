@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Sun, Moon, Volume2, VolumeX, Clock, Copy, Check, 
@@ -10,10 +10,10 @@ import { sound } from '../utils/sound';
 
 // =========================================================================
 // 🚀 EASY FUTURE-PROOF APP DOWNLOAD LINKS CONFIGURATION
-// Paste your direct .apk or .exe URLs below whenever your builds are ready:
+// Direct .apk same-origin link & .exe binary download URLs:
 // =========================================================================
 export const APP_DOWNLOAD_LINKS = {
-  androidApk: "https://github.com/wahab-usman/Nullpin/releases/download/v1.0.0/NullPin.apk",
+  androidApk: "/NullPin.apk",
   windowsExe: "https://github.com/wahab-usman/Nullpin/releases/download/v1.0.0/NullPin-Setup.exe",
   version: "v1.0.0"
 };
@@ -31,6 +31,7 @@ export default function DynamicIsland() {
   const [copied, setCopied] = useState(false);
   const [showDownloadMenu, setShowDownloadMenu] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+  const toastTimeoutRef = useRef(null);
 
   // Detect if running inside installed Windows Electron .EXE, native Android Capacitor app, or standalone PWA
   const isStandaloneApp =
@@ -57,27 +58,60 @@ export default function DynamicIsland() {
 
   const handleDownloadClick = (type) => {
     sound.toggleSnap();
-    const link = type === 'android' ? APP_DOWNLOAD_LINKS.androidApk : APP_DOWNLOAD_LINKS.windowsExe;
-    const filename = type === 'android' ? 'NullPin.apk' : 'NullPin-Setup.exe';
+    setShowDownloadMenu(false);
 
-    if (link && link.trim() !== '') {
+    if (type === 'android') {
+      const link = APP_DOWNLOAD_LINKS.androidApk || '/NullPin.apk';
+      setToastMessage('Downloading NullPin APK for Android...');
+
       try {
+        // Trigger same-origin direct download with hidden anchor
         const a = document.createElement('a');
+        a.style.display = 'none';
         a.href = link;
-        a.download = filename;
-        a.rel = 'noopener noreferrer';
+        a.download = 'NullPin.apk';
         document.body.appendChild(a);
         a.click();
-        document.body.removeChild(a);
+        setTimeout(() => {
+          if (document.body.contains(a)) document.body.removeChild(a);
+        }, 150);
       } catch {
         window.location.href = link;
       }
-      setShowDownloadMenu(false);
-    } else {
-      const name = type === 'android' ? 'Android APK' : 'Windows EXE';
-      setToastMessage(`${name} build coming soon (${APP_DOWNLOAD_LINKS.version})`);
-      setTimeout(() => setToastMessage(''), 2500);
+    } else if (type === 'windows') {
+      const link = APP_DOWNLOAD_LINKS.windowsExe;
+      setToastMessage('Downloading NullPin Setup for Windows...');
+
+      if (link && link.trim() !== '') {
+        try {
+          // Direct download via hidden iframe to prevent navigating away or redirecting page
+          const iframe = document.createElement('iframe');
+          iframe.style.display = 'none';
+          iframe.src = link;
+          document.body.appendChild(iframe);
+          setTimeout(() => {
+            if (document.body.contains(iframe)) document.body.removeChild(iframe);
+          }, 10000);
+        } catch {
+          const a = document.createElement('a');
+          a.style.display = 'none';
+          a.href = link;
+          a.download = 'NullPin-Setup.exe';
+          a.target = '_blank';
+          a.rel = 'noopener noreferrer';
+          document.body.appendChild(a);
+          a.click();
+          setTimeout(() => {
+            if (document.body.contains(a)) document.body.removeChild(a);
+          }, 200);
+        }
+      }
     }
+
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    toastTimeoutRef.current = setTimeout(() => {
+      setToastMessage('');
+    }, 3500);
   };
 
   return (
@@ -315,6 +349,25 @@ export default function DynamicIsland() {
           </button>
         </div>
       </div>
+
+      {/* ================= SLEEK FLOATING TOAST NOTIFICATION ================= */}
+      <AnimatePresence>
+        {toastMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: -10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.95 }}
+            transition={{ duration: 0.22, ease: 'easeOut' }}
+            className="fixed top-16 sm:top-20 left-1/2 -translate-x-1/2 z-50 pointer-events-none flex items-center gap-2.5 px-4 py-2 rounded-full bg-zinc-950/90 dark:bg-zinc-900/95 text-white border border-emerald-500/40 shadow-[0_12px_36px_rgba(0,0,0,0.5),0_0_20px_rgba(16,185,129,0.25)] backdrop-blur-xl font-mono text-xs font-semibold select-none whitespace-nowrap"
+          >
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+            </span>
+            <span>{toastMessage}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </header>
   );
 }
