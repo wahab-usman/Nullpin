@@ -54,10 +54,12 @@ export default function KineticPinKeypad() {
         inputMode="numeric"
         pattern="[0-9]*"
         maxLength={4}
+        autoComplete="one-time-code"
         value={currentPinStr}
         onChange={handleInputChange}
         onKeyDown={handleKeyDown}
         className="sr-only"
+        style={{ fontSize: '16px' }}
         autoFocus
       />
 
@@ -67,7 +69,7 @@ export default function KineticPinKeypad() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25, ease: 'easeOut' }}
         onClick={handleBoxClick}
-        className={`w-full p-6 sm:p-7 rounded-3xl backdrop-blur-xl transition-all duration-200 cursor-pointer select-none
+        className={`w-full p-4 sm:p-7 rounded-3xl backdrop-blur-xl transition-all duration-200 cursor-pointer select-none
           ${
             pinError
               ? 'border-2 border-rose-500/80 bg-rose-500/[0.04]'
@@ -97,7 +99,7 @@ export default function KineticPinKeypad() {
                 }
               : {}
           }
-          className="flex items-center justify-center gap-2.5 sm:gap-3.5 mb-5"
+          className="flex items-center justify-center gap-2 min-[380px]:gap-2.5 sm:gap-3.5 mb-5"
         >
           {pinDigits.map((digit, i) => {
             const isFilled = digit !== '';
@@ -106,7 +108,7 @@ export default function KineticPinKeypad() {
             return (
               <div
                 key={i}
-                className={`relative w-13 h-16 sm:w-16 sm:h-20 rounded-2xl flex items-center justify-center
+                className={`relative w-12 h-16 min-[380px]:w-14 min-[380px]:h-18 sm:w-16 sm:h-20 rounded-2xl flex items-center justify-center
                   transition-all duration-150 select-none
                   ${
                     pinError
@@ -119,7 +121,7 @@ export default function KineticPinKeypad() {
                   }`}
               >
                 {isFilled ? (
-                  <span className="font-mono font-extrabold text-3xl sm:text-4xl tracking-tighter">
+                  <span className="font-mono font-extrabold text-2xl min-[380px]:text-3xl sm:text-4xl tracking-tighter">
                     {digit}
                   </span>
                 ) : (

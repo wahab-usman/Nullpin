@@ -196,11 +196,11 @@ export default function PrintStudio() {
         className="w-full rounded-3xl bg-white/90 dark:bg-zinc-900/90 backdrop-blur-2xl 
                    border border-slate-200/90 dark:border-white/10 
                    shadow-[0_25px_60px_rgba(0,0,0,0.08)] dark:shadow-[0_25px_70px_rgba(0,0,0,0.6)]
-                   overflow-hidden p-6 sm:p-8 space-y-5"
+                   overflow-hidden p-4 sm:p-8 space-y-4 sm:space-y-5"
       >
         {/* ================= 1. TERMINAL HEADER ================= */}
         <div className="flex items-center justify-between pb-3.5 border-b border-slate-100 dark:border-zinc-800/80">
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2 sm:gap-2.5">
             <span className="relative flex h-2.5 w-2.5">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
               <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
@@ -215,7 +215,7 @@ export default function PrintStudio() {
             </div>
           </div>
 
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-600 dark:text-emerald-400 text-xs font-mono font-bold">
+          <div className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-600 dark:text-emerald-400 text-xs font-mono font-bold">
             <ShieldCheck className="w-3.5 h-3.5" />
             <span>UNLOCKED</span>
           </div>
@@ -223,22 +223,22 @@ export default function PrintStudio() {
 
         {/* ================= 2. FILE MANIFEST CARD ================= */}
         {isMultiFile ? (
-          <div className="p-4 rounded-2xl bg-slate-50/80 dark:bg-zinc-950/50 border border-slate-200/80 dark:border-zinc-800/80 space-y-3">
+          <div className="p-3.5 sm:p-4 rounded-2xl bg-slate-50/80 dark:bg-zinc-950/50 border border-slate-200/80 dark:border-zinc-800/80 space-y-3">
             <div className="flex items-center justify-between pb-2 border-b border-slate-200/60 dark:border-zinc-800">
-              <div className="flex items-center gap-2.5">
+              <div className="flex items-center gap-2 sm:gap-2.5">
                 <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
                   <Files className="w-4 h-4" />
                 </div>
                 <div className="text-left">
-                  <p className="text-sm font-bold text-slate-900 dark:text-zinc-100">
+                  <p className="text-xs sm:text-sm font-bold text-slate-900 dark:text-zinc-100">
                     {filesList.length} Files Ready to Print
                   </p>
-                  <p className="text-xs font-mono text-slate-500 dark:text-zinc-400 mt-0.5">
+                  <p className="text-[10px] sm:text-xs font-mono text-slate-500 dark:text-zinc-400 mt-0.5">
                     {formatSize(totalBytes)} Total • Ephemeral Memory Buffer
                   </p>
                 </div>
               </div>
-              <span className="text-[10px] font-mono font-bold px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shrink-0">
+              <span className="text-[10px] font-mono font-bold px-2 sm:px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shrink-0">
                 {filesList.length} ATTACHED
               </span>
             </div>
@@ -253,9 +253,9 @@ export default function PrintStudio() {
                 return (
                   <div
                     key={fKey}
-                    className="flex items-center justify-between p-2.5 rounded-xl bg-white/90 dark:bg-zinc-900/80 border border-slate-200/80 dark:border-zinc-800 text-xs text-left"
+                    className="flex items-center justify-between p-2 sm:p-2.5 rounded-xl bg-white/90 dark:bg-zinc-900/80 border border-slate-200/80 dark:border-zinc-800 text-xs text-left"
                   >
-                    <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                    <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 pr-2">
                       <span className="text-[10px] font-mono text-slate-400 w-4 text-center">
                         {idx + 1}
                       </span>
@@ -265,7 +265,7 @@ export default function PrintStudio() {
                         <FileText className="w-4 h-4 text-emerald-500 shrink-0" />
                       )}
                       <div className="min-w-0">
-                        <p className="font-semibold text-slate-800 dark:text-zinc-200 truncate max-w-[190px] sm:max-w-[260px]">
+                        <p className="font-semibold text-slate-800 dark:text-zinc-200 truncate max-w-[120px] min-[380px]:max-w-[180px] sm:max-w-[260px]">
                           {f.name}
                         </p>
                         <p className="text-[10px] font-mono text-slate-400 dark:text-zinc-500">
@@ -278,7 +278,7 @@ export default function PrintStudio() {
                       type="button"
                       onClick={() => handlePrintSingleFile(f)}
                       disabled={isItemPrinting}
-                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer shrink-0 ${
+                      className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer shrink-0 touch-manipulation min-h-[36px] ${
                         isItemPrinted
                           ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
                           : 'bg-emerald-500 hover:bg-emerald-400 text-white shadow-xs'
@@ -312,21 +312,21 @@ export default function PrintStudio() {
             </div>
           </div>
         ) : (
-          <div className="p-4 rounded-2xl bg-slate-50/80 dark:bg-zinc-950/50 border border-slate-200/80 dark:border-zinc-800/80 flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+          <div className="p-3.5 sm:p-4 rounded-2xl bg-slate-50/80 dark:bg-zinc-950/50 border border-slate-200/80 dark:border-zinc-800/80 flex items-center gap-3 sm:gap-3.5">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
               {isSingleZip ? (
-                <FileArchive className="w-6 h-6" />
+                <FileArchive className="w-5 h-5 sm:w-6 sm:h-6" />
               ) : isIdCard ? (
-                <CreditCard className="w-6 h-6" />
+                <CreditCard className="w-5 h-5 sm:w-6 sm:h-6" />
               ) : (
-                <FileText className="w-6 h-6" />
+                <FileText className="w-5 h-5 sm:w-6 sm:h-6" />
               )}
             </div>
             <div className="min-w-0 flex-1 text-left">
-              <p className="text-sm font-bold text-slate-900 dark:text-zinc-100 truncate">
+              <p className="text-xs sm:text-sm font-bold text-slate-900 dark:text-zinc-100 truncate max-w-[130px] min-[380px]:max-w-[200px] sm:max-w-md">
                 {fileName}
               </p>
-              <p className="text-xs font-mono text-slate-500 dark:text-zinc-400 mt-0.5">
+              <p className="text-[10px] sm:text-xs font-mono text-slate-500 dark:text-zinc-400 mt-0.5">
                 {formatSize(drop.file?.size)} • {
                   isSingleZip
                     ? 'Encrypted ZIP Archive in RAM'
@@ -336,7 +336,7 @@ export default function PrintStudio() {
                 }
               </p>
             </div>
-            <span className="text-[10px] font-mono font-bold px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shrink-0">
+            <span className="text-[10px] font-mono font-bold px-2 sm:px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shrink-0">
               {isSingleZip ? 'ZIP READY' : 'READY'}
             </span>
           </div>
@@ -351,9 +351,9 @@ export default function PrintStudio() {
             </span>
           </div>
 
-          <div className="grid grid-cols-3 gap-2.5">
+          <div className="grid grid-cols-1 min-[420px]:grid-cols-3 gap-2 sm:gap-2.5">
             {/* Color Profile */}
-            <div className="p-3 rounded-2xl bg-slate-50/80 dark:bg-zinc-950/40 border border-slate-200/70 dark:border-zinc-800/70 text-left">
+            <div className="p-2.5 sm:p-3 rounded-2xl bg-slate-50/80 dark:bg-zinc-950/40 border border-slate-200/70 dark:border-zinc-800/70 text-left">
               <span className="text-[10px] font-mono text-slate-400 dark:text-zinc-500 block">
                 {isSingleZip || allAreZip ? 'ENCRYPTION' : 'PROFILE'}
               </span>
@@ -363,7 +363,7 @@ export default function PrintStudio() {
             </div>
 
             {/* Duplex / Sides */}
-            <div className="p-3 rounded-2xl bg-slate-50/80 dark:bg-zinc-950/40 border border-slate-200/70 dark:border-zinc-800/70 text-left">
+            <div className="p-2.5 sm:p-3 rounded-2xl bg-slate-50/80 dark:bg-zinc-950/40 border border-slate-200/70 dark:border-zinc-800/70 text-left">
               <span className="text-[10px] font-mono text-slate-400 dark:text-zinc-500 block">
                 {isSingleZip || allAreZip ? 'STORAGE' : 'SIDES'}
               </span>
@@ -373,7 +373,7 @@ export default function PrintStudio() {
             </div>
 
             {/* Copies */}
-            <div className="p-3 rounded-2xl bg-slate-50/80 dark:bg-zinc-950/40 border border-slate-200/70 dark:border-zinc-800/70 text-left">
+            <div className="p-2.5 sm:p-3 rounded-2xl bg-slate-50/80 dark:bg-zinc-950/40 border border-slate-200/70 dark:border-zinc-800/70 text-left">
               <span className="text-[10px] font-mono text-slate-400 dark:text-zinc-500 block">
                 {isSingleZip || allAreZip ? 'WIPE ON' : 'QUANTITY'}
               </span>
@@ -387,7 +387,7 @@ export default function PrintStudio() {
         {/* Security Footnote */}
         <div className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-100/60 dark:bg-zinc-800/30 text-slate-500 dark:text-zinc-400 text-left">
           <Lock className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-          <span className="text-[11px] font-mono">
+          <span className="text-[10px] sm:text-[11px] font-mono">
             {isSingleZip || allAreZip
               ? 'Zero-Trace Buffer: Decrypted directly into memory and purged on complete.'
               : 'Zero-Disk Stream: Transferred directly to the local printer driver without saving to downloads.'}
@@ -400,11 +400,11 @@ export default function PrintStudio() {
             <motion.div
               initial={{ opacity: 0, y: 4 }}
               animate={{ opacity: 1, y: 0 }}
-              className="p-3.5 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-semibold flex items-center justify-between"
+              className="p-3 sm:p-3.5 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-semibold flex items-center justify-between"
             >
               <div className="flex items-center gap-2">
                 <Flame className="w-4 h-4 text-rose-500 animate-pulse shrink-0" />
-                <span>Print dispatched. Auto-purging RAM buffer in 2 seconds...</span>
+                <span className="text-left">Print dispatched. Auto-purging RAM buffer in 2 seconds...</span>
               </div>
               <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-rose-500/20 text-rose-500 shrink-0 uppercase tracking-wider">
                 AUTO-BURN
@@ -414,7 +414,7 @@ export default function PrintStudio() {
             <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-xs font-semibold flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Check className="w-4 h-4 text-emerald-500 shrink-0" />
-                <span>Job dispatched. Document remains safely in RAM buffer.</span>
+                <span className="text-left">Job dispatched. Document remains safely in RAM buffer.</span>
               </div>
               <span className="text-[10px] font-mono font-bold text-slate-400 dark:text-zinc-500 shrink-0">
                 ACTIVE
@@ -427,8 +427,8 @@ export default function PrintStudio() {
             type="button"
             onClick={isAutoBurning ? handleVaporizeNow : handlePrint}
             disabled={isPrinting || isVaporizing}
-            className={`relative overflow-hidden w-full py-4 px-6 rounded-2xl font-bold text-white text-sm
-                       active:scale-[0.98] transition-all flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50 group ${
+            className={`relative overflow-hidden w-full py-3.5 sm:py-4 px-4 sm:px-6 rounded-2xl font-bold text-white text-xs sm:text-sm
+                       active:scale-[0.98] transition-all flex items-center justify-center gap-2 sm:gap-2.5 cursor-pointer disabled:opacity-50 group min-h-[48px] touch-manipulation ${
                          isAutoBurning
                            ? 'bg-rose-500 hover:bg-rose-600 shadow-[0_10px_25px_rgba(244,63,94,0.35)] animate-pulse'
                            : 'bg-emerald-500 hover:bg-emerald-400 shadow-[0_10px_25px_rgba(16,185,129,0.3)]'
@@ -439,13 +439,13 @@ export default function PrintStudio() {
             
             {isAutoBurning ? (
               <>
-                <Flame className="w-4 h-4 animate-bounce text-white" />
-                <span>Auto-Purging RAM Now (Click to Wipe Instantly)</span>
+                <Flame className="w-4 h-4 animate-bounce text-white shrink-0" />
+                <span className="truncate">Auto-Purging RAM Now (Click to Wipe Instantly)</span>
               </>
             ) : isPrinting ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin text-white" />
-                <span>
+                <Loader2 className="w-4 h-4 animate-spin text-white shrink-0" />
+                <span className="truncate">
                   {isMultiFile
                     ? `Spooling ${nextTargetFile?.name || 'File'} to Printer...`
                     : 'Spooling to Printer Driver...'}
@@ -453,31 +453,31 @@ export default function PrintStudio() {
               </>
             ) : isSingleZip ? (
               <>
-                <FolderDown className="w-4 h-4 text-emerald-100" />
+                <FolderDown className="w-4 h-4 text-emerald-100 shrink-0" />
                 <span>Save ZIP Archive from RAM</span>
-                <ArrowRight className="w-4 h-4 text-emerald-100 group-hover:translate-x-0.5 transition-transform" />
+                <ArrowRight className="w-4 h-4 text-emerald-100 group-hover:translate-x-0.5 transition-transform shrink-0" />
               </>
             ) : allAreZip ? (
               <>
-                <FolderDown className="w-4 h-4 text-emerald-100" />
-                <span>
+                <FolderDown className="w-4 h-4 text-emerald-100 shrink-0" />
+                <span className="truncate">
                   {allFilesPrinted
                     ? `All ${filesList.length} ZIPs Saved ✓ (Save Again)`
                     : `Save ZIP ${printedCount + 1} of ${filesList.length}: ${nextTargetFile?.name}`}
                 </span>
-                <ArrowRight className="w-4 h-4 text-emerald-100 group-hover:translate-x-0.5 transition-transform" />
+                <ArrowRight className="w-4 h-4 text-emerald-100 group-hover:translate-x-0.5 transition-transform shrink-0" />
               </>
             ) : isMultiFile ? (
               allFilesPrinted ? (
                 <>
-                  <Check className="w-4 h-4 text-emerald-100" />
-                  <span>All {filesList.length} Files Printed ✓ (Print Again?)</span>
-                  <Printer className="w-4 h-4 text-emerald-100 ml-1" />
+                  <Check className="w-4 h-4 text-emerald-100 shrink-0" />
+                  <span className="truncate">All {filesList.length} Files Printed ✓ (Print Again?)</span>
+                  <Printer className="w-4 h-4 text-emerald-100 ml-1 shrink-0" />
                 </>
               ) : (
                 <>
-                  <Printer className="w-4 h-4 text-emerald-100" />
-                  <span className="truncate max-w-[320px]">
+                  <Printer className="w-4 h-4 text-emerald-100 shrink-0" />
+                  <span className="truncate max-w-[140px] min-[380px]:max-w-[200px] sm:max-w-[320px]">
                     Print File {printedCount + 1} of {filesList.length}: {nextTargetFile?.name}
                   </span>
                   <ArrowRight className="w-4 h-4 text-emerald-100 group-hover:translate-x-0.5 transition-transform shrink-0" />
@@ -485,13 +485,13 @@ export default function PrintStudio() {
               )
             ) : (
               <>
-                <Printer className="w-4 h-4 text-emerald-100" />
+                <Printer className="w-4 h-4 text-emerald-100 shrink-0" />
                 <span>
                   {printedFileIds.size > 0
                     ? 'Print Again Direct from RAM'
                     : 'Print Direct from RAM'}
                 </span>
-                <ArrowRight className="w-4 h-4 text-emerald-100 group-hover:translate-x-0.5 transition-transform" />
+                <ArrowRight className="w-4 h-4 text-emerald-100 group-hover:translate-x-0.5 transition-transform shrink-0" />
               </>
             )}
           </button>
@@ -502,7 +502,7 @@ export default function PrintStudio() {
             onClick={handleVaporizeNow}
             disabled={isVaporizing}
             className="w-full py-2.5 px-4 rounded-xl text-xs font-bold text-rose-500
-                       hover:bg-rose-500/10 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                       hover:bg-rose-500/10 transition-colors flex items-center justify-center gap-1.5 cursor-pointer touch-manipulation min-h-[44px]"
           >
             <Flame className="w-3.5 h-3.5" />
             <span>Purge & Wipe RAM Buffer</span>
