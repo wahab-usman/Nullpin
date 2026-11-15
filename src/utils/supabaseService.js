@@ -484,14 +484,15 @@ export async function fetchDropFromSupabase(pin) {
     const primaryFile = reconstructedFiles[0] || null;
     const primaryBlobUrl = primaryFile?.blobUrl || null;
 
-    // Single-Claim Enforcement: Mark status as 'claimed' so no second device or tab can claim this PIN
+    // Single-Claim Enforcement: Delete the DB row now that this device has claimed and downloaded it,
+    // so no second device or tab can claim this PIN. Storage bucket files remain intact for active printing.
     try {
       await supabase
         .from(TABLE_NAME)
-        .update({ status: 'claimed' })
+        .delete()
         .eq('pin', searchPin);
     } catch (consumeErr) {
-      console.warn('[NullPin Supabase] Claim PIN error:', consumeErr);
+      console.warn('[NullPin Supabase] Claim PIN delete error:', consumeErr);
     }
 
     return {
@@ -548,15 +549,7 @@ export async function burnDropInSupabase(pin) {
       console.warn('[NullPin Supabase] Broadcast burn error:', bErr);
     }
 
-    // 2. Mark status as burned in database table (triggers postgres_changes)
-    try {
-      await supabase
-        .from(TABLE_NAME)
-        .update({ status: 'burned' })
-        .eq('pin', searchPin);
-    } catch (e) {}
-
-    // 3. Delete row from database
+    // 2. Delete row from database (if not already deleted on claim)
     try {
       await supabase
         .from(TABLE_NAME)
@@ -564,7 +557,7 @@ export async function burnDropInSupabase(pin) {
         .eq('pin', searchPin);
     } catch (e) {}
 
-    // 4. List and remove all files in the storage bucket folder
+    // 3. List and remove all files in the storage bucket folder
     const { data: filesInFolder } = await supabase.storage
       .from(BUCKET_NAME)
       .list(searchPin);
@@ -580,7 +573,7 @@ export async function burnDropInSupabase(pin) {
 
 /**
  * Subscribes to real-time status updates (e.g. burn events) across devices.
- * Uses both Realtime channels and a 2-second existence polling safeguard.
+ * Uses Realtime Broadcast channels and a 2-second storage-existence polling safeguard.
  */
 export function subscribeToSupabaseDrop(pin, onStatusChange) {
   if (!isSupabaseConfigured() || !supabase) return () => {};
@@ -588,25 +581,9 @@ export function subscribeToSupabaseDrop(pin, onStatusChange) {
   const searchPin = String(pin).trim();
   let isCleanedUp = false;
 
-  // 1. Postgres changes channel + Broadcast channel
+  // 1. Broadcast channel for instantaneous cross-device burn notification
   const channel = supabase
     .channel(`nullpin-sync-${searchPin}`)
-    .on(
-      'postgres_changes',
-      {
-        event: '*',
-        schema: 'public',
-        table: TABLE_NAME,
-        filter: `pin=eq.${searchPin}`,
-      },
-      (payload) => {
-        if (payload.eventType === 'DELETE') {
-          if (typeof onStatusChange === 'function') onStatusChange({ status: 'burned' });
-        } else if (payload.new && typeof onStatusChange === 'function') {
-          onStatusChange(payload.new);
-        }
-      }
-    )
     .on('broadcast', { event: 'DROP_BURNED' }, () => {
       if (typeof onStatusChange === 'function') {
         onStatusChange({ status: 'burned' });
@@ -614,27 +591,26 @@ export function subscribeToSupabaseDrop(pin, onStatusChange) {
     })
     .subscribe();
 
-  // 2. High-reliability 2-second existence polling for cross-device burn sync
+  // 2. High-reliability 2-second storage-existence polling for cross-device burn sync
+  // Monitors if files in Supabase Storage bucket under `${searchPin}/` still exist.
+  // While drop is in active print session, storage files exist.
+  // When burnDropInSupabase empties the storage folder, trigger 'burned'.
+  let hadStorageFiles = false;
   const pollInterval = setInterval(async () => {
     if (isCleanedUp) return;
     try {
-      const { data, error } = await supabase
-        .from(TABLE_NAME)
-        .select('status')
-        .eq('pin', searchPin)
-        .maybeSingle();
+      const { data: files, error } = await supabase.storage
+        .from(BUCKET_NAME)
+        .list(searchPin);
 
       if (isCleanedUp) return;
 
-      // If record is missing (deleted on burn) OR status is burned, trigger burn on sender
-      if (error || !data || data.status === 'burned') {
+      if (!error && Array.isArray(files) && files.length > 0) {
+        hadStorageFiles = true;
+      } else if (hadStorageFiles && Array.isArray(files) && files.length === 0) {
         clearInterval(pollInterval);
         if (typeof onStatusChange === 'function') {
           onStatusChange({ status: 'burned' });
-        }
-      } else if (data.status === 'claimed' || data.status === 'opened') {
-        if (typeof onStatusChange === 'function') {
-          onStatusChange({ status: data.status });
         }
       }
     } catch (pollErr) {

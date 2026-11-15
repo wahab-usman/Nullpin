@@ -217,11 +217,14 @@ export async function ensureSameOriginBlobUrl(url, mimeType = 'application/pdf')
 
 // Registry of pre-warmed iframe instances: Map<fileKey, { iframe, isLoaded, blobUrl, type }>
 const prewarmedFrames = new Map();
+// In-flight prewarm promises map to deduplicate concurrent requests
+const inFlightPrewarms = new Map();
 
 /**
  * Destroys all pre-warmed iframes from the DOM and clears the cache
  */
 export function cleanupPrewarmedFrames() {
+  inFlightPrewarms.clear();
   for (const [, record] of prewarmedFrames.entries()) {
     try {
       if (record?.iframe && record.iframe.parentNode) {
@@ -344,127 +347,145 @@ export function getImageHtml(rawFileName, blobUrl, isGrayscale) {
 async function prewarmFileIframe(fileObj, dropData) {
   if (typeof document === 'undefined' || isMobile) return null;
   const fileKey = fileObj.id || fileObj.name || 'primary';
-  const rawFileName = fileObj.name || dropData.file?.name || '';
-  const fileName = rawFileName.toLowerCase();
-  const fileType = (fileObj.type || dropData.file?.type || '').toLowerCase();
 
-  const isPdf = (fileType === 'application/pdf' || fileName.endsWith('.pdf')) &&
-                !fileName.endsWith('.docx') && !fileName.endsWith('.doc');
-  const isImage = fileType.startsWith('image/') || /\.(png|jpe?g|webp|svg|gif|bmp)$/i.test(fileName);
-  const colorPref = dropData.prefs?.colorMode || dropData.printPrefs?.color || 'bw';
-  const isGrayscale = colorPref === 'bw';
+  if (inFlightPrewarms.has(fileKey)) {
+    return inFlightPrewarms.get(fileKey);
+  }
 
   const existing = prewarmedFrames.get(fileKey);
   if (existing && existing.iframe && document.body.contains(existing.iframe) && existing.isLoaded) {
     return existing;
   }
 
-  let cleanUrl = fileObj.blobUrl;
-  if (!cleanUrl && fileObj.rawFile instanceof Blob) {
-    cleanUrl = URL.createObjectURL(fileObj.rawFile);
-    fileObj.blobUrl = cleanUrl;
-  }
-  if (cleanUrl) {
-    const mime = fileObj.type || (isPdf ? 'application/pdf' : isImage ? 'image/png' : 'application/octet-stream');
-    cleanUrl = await ensureSameOriginBlobUrl(cleanUrl, mime);
-    fileObj.blobUrl = cleanUrl;
-  }
+  const prewarmPromise = (async () => {
+    const rawFileName = fileObj.name || dropData.file?.name || '';
+    const fileName = rawFileName.toLowerCase();
+    const fileType = (fileObj.type || dropData.file?.type || '').toLowerCase();
 
-  const frameId = `nullpin-prewarm-${String(fileKey).replace(/[^a-zA-Z0-9_-]/g, '_')}`;
-  let iframe = document.getElementById(frameId);
-  if (!iframe) {
-    iframe = document.createElement('iframe');
-    iframe.id = frameId;
-    iframe.style.cssText =
-      'position: fixed; right: 0; bottom: 0; width: 800px; height: 600px; opacity: 0.01; pointer-events: none; border: 0; z-index: -1;';
-    document.body.appendChild(iframe);
-  }
+    const isPdf = (fileType === 'application/pdf' || fileName.endsWith('.pdf')) &&
+                  !fileName.endsWith('.docx') && !fileName.endsWith('.doc');
+    const isImage = fileType.startsWith('image/') || /\.(png|jpe?g|webp|svg|gif|bmp)$/i.test(fileName);
+    const colorPref = dropData.prefs?.colorMode || dropData.printPrefs?.color || 'bw';
+    const isGrayscale = colorPref === 'bw';
 
-  const record = { iframe, isLoaded: false, blobUrl: cleanUrl, type: isPdf ? 'pdf' : isImage ? 'image' : 'html' };
-  prewarmedFrames.set(fileKey, record);
-
-  if (isPdf && cleanUrl) {
-    const pdfUrl = cleanUrl.split('#')[0];
-    iframe.src = pdfUrl;
-    iframe.onload = () => {
-      record.isLoaded = true;
-    };
-    iframe.onerror = () => {
-      record.isLoaded = false;
-    };
-    // Chrome PDFium plugin parses multi-page PDFs in background
-    setTimeout(() => { record.isLoaded = true; }, 1000);
-    return record;
-  }
-
-  if (isImage && cleanUrl) {
-    const html = getImageHtml(rawFileName, cleanUrl, isGrayscale);
-    const doc = iframe.contentDocument || iframe.contentWindow.document;
-    doc.open();
-    doc.write(html);
-    doc.close();
-
-    const imgs = Array.from(doc.querySelectorAll('img'));
-    if (imgs.length > 0) {
-      Promise.all(
-        imgs.map((img) => (typeof img.decode === 'function' ? img.decode().catch(() => {}) : Promise.resolve()))
-      ).then(() => {
-        record.isLoaded = true;
-      });
-    } else {
-      record.isLoaded = true;
+    let cleanUrl = fileObj.blobUrl;
+    if (!cleanUrl && fileObj.rawFile instanceof Blob) {
+      cleanUrl = URL.createObjectURL(fileObj.rawFile);
+      fileObj.blobUrl = cleanUrl;
     }
-    return record;
-  }
+    if (cleanUrl) {
+      const mime = fileObj.type || (isPdf ? 'application/pdf' : isImage ? 'image/png' : 'application/octet-stream');
+      cleanUrl = await ensureSameOriginBlobUrl(cleanUrl, mime);
+      fileObj.blobUrl = cleanUrl;
+    }
 
-  return record;
+    const frameId = `nullpin-prewarm-${String(fileKey).replace(/[^a-zA-Z0-9_-]/g, '_')}`;
+    let iframe = document.getElementById(frameId);
+    if (!iframe) {
+      iframe = document.createElement('iframe');
+      iframe.id = frameId;
+      iframe.style.cssText =
+        'position: fixed; right: 0; bottom: 0; width: 800px; height: 600px; opacity: 0.01; pointer-events: none; border: 0; z-index: -1;';
+      document.body.appendChild(iframe);
+    }
+
+    const record = { iframe, isLoaded: false, blobUrl: cleanUrl, type: isPdf ? 'pdf' : isImage ? 'image' : 'html' };
+    prewarmedFrames.set(fileKey, record);
+
+    if (isPdf && cleanUrl) {
+      const pdfUrl = cleanUrl.split('#')[0];
+      iframe.src = pdfUrl;
+      iframe.onload = () => {
+        record.isLoaded = true;
+      };
+      iframe.onerror = () => {
+        record.isLoaded = false;
+      };
+      // Chrome PDFium plugin parses multi-page PDFs in background
+      setTimeout(() => { record.isLoaded = true; }, 1000);
+      return record;
+    }
+
+    if (isImage && cleanUrl) {
+      const html = getImageHtml(rawFileName, cleanUrl, isGrayscale);
+      const doc = iframe.contentDocument || iframe.contentWindow.document;
+      doc.open();
+      doc.write(html);
+      doc.close();
+
+      const imgs = Array.from(doc.querySelectorAll('img'));
+      if (imgs.length > 0) {
+        await Promise.all(
+          imgs.map((img) => (typeof img.decode === 'function' ? img.decode().catch(() => {}) : Promise.resolve()))
+        );
+      }
+      record.isLoaded = true;
+      return record;
+    }
+
+    return record;
+  })().finally(() => {
+    inFlightPrewarms.delete(fileKey);
+  });
+
+  inFlightPrewarms.set(fileKey, prewarmPromise);
+  return prewarmPromise;
 }
 
 async function prewarmIdCardIframe(dropData) {
   if (typeof document === 'undefined' || isMobile) return null;
   const fileKey = 'idcard';
+
+  if (inFlightPrewarms.has(fileKey)) {
+    return inFlightPrewarms.get(fileKey);
+  }
+
   const existing = prewarmedFrames.get(fileKey);
   if (existing && existing.iframe && document.body.contains(existing.iframe) && existing.isLoaded) {
     return existing;
   }
 
-  let frontUrl = dropData.frontBlobUrl || dropData.frontPreview;
-  let backUrl = dropData.backBlobUrl || dropData.backPreview || frontUrl;
+  const prewarmPromise = (async () => {
+    let frontUrl = dropData.frontBlobUrl || dropData.frontPreview;
+    let backUrl = dropData.backBlobUrl || dropData.backPreview || frontUrl;
 
-  if (frontUrl) frontUrl = await ensureSameOriginBlobUrl(frontUrl, 'image/jpeg');
-  if (backUrl) backUrl = await ensureSameOriginBlobUrl(backUrl, 'image/jpeg');
+    if (frontUrl) frontUrl = await ensureSameOriginBlobUrl(frontUrl, 'image/jpeg');
+    if (backUrl) backUrl = await ensureSameOriginBlobUrl(backUrl, 'image/jpeg');
 
-  const frameId = 'nullpin-prewarm-idcard';
-  let iframe = document.getElementById(frameId);
-  if (!iframe) {
-    iframe = document.createElement('iframe');
-    iframe.id = frameId;
-    iframe.style.cssText =
-      'position: fixed; right: 0; bottom: 0; width: 800px; height: 600px; opacity: 0.01; pointer-events: none; border: 0; z-index: -1;';
-    document.body.appendChild(iframe);
-  }
+    const frameId = 'nullpin-prewarm-idcard';
+    let iframe = document.getElementById(frameId);
+    if (!iframe) {
+      iframe = document.createElement('iframe');
+      iframe.id = frameId;
+      iframe.style.cssText =
+        'position: fixed; right: 0; bottom: 0; width: 800px; height: 600px; opacity: 0.01; pointer-events: none; border: 0; z-index: -1;';
+      document.body.appendChild(iframe);
+    }
 
-  const isGrayscale = (dropData.prefs?.colorMode || dropData.printPrefs?.color || 'bw') === 'bw';
-  const html = getIdCardHtml(frontUrl, backUrl, isGrayscale, dropData.prefs?.copies || 1);
-  const doc = iframe.contentDocument || iframe.contentWindow.document;
-  doc.open();
-  doc.write(html);
-  doc.close();
+    const isGrayscale = (dropData.prefs?.colorMode || dropData.printPrefs?.color || 'bw') === 'bw';
+    const html = getIdCardHtml(frontUrl, backUrl, isGrayscale, dropData.prefs?.copies || 1);
+    const doc = iframe.contentDocument || iframe.contentWindow.document;
+    doc.open();
+    doc.write(html);
+    doc.close();
 
-  const record = { iframe, isLoaded: false, type: 'idcard' };
-  prewarmedFrames.set(fileKey, record);
+    const record = { iframe, isLoaded: false, type: 'idcard' };
+    prewarmedFrames.set(fileKey, record);
 
-  const imgs = Array.from(doc.querySelectorAll('img'));
-  if (imgs.length > 0) {
-    Promise.all(
-      imgs.map((img) => (typeof img.decode === 'function' ? img.decode().catch(() => {}) : Promise.resolve()))
-    ).then(() => {
-      record.isLoaded = true;
-    });
-  } else {
+    const imgs = Array.from(doc.querySelectorAll('img'));
+    if (imgs.length > 0) {
+      await Promise.all(
+        imgs.map((img) => (typeof img.decode === 'function' ? img.decode().catch(() => {}) : Promise.resolve()))
+      );
+    }
     record.isLoaded = true;
-  }
-  return record;
+    return record;
+  })().finally(() => {
+    inFlightPrewarms.delete(fileKey);
+  });
+
+  inFlightPrewarms.set(fileKey, prewarmPromise);
+  return prewarmPromise;
 }
 
 /**
@@ -521,7 +542,7 @@ export async function preloadDropBlobs(drop) {
  * Creates an isolated hidden iframe that Chrome/Edge/Firefox PDFium & Layout engines
  * will render without clipping, and dispatches direct print calls.
  */
-export async function printFromRam(dropData, onPrintComplete) {
+export async function printFromRam(dropData, onPrintComplete, onDialogOpened) {
   if (!dropData) {
     console.error('[NullPin RAM Print] No drop data provided.');
     return;
@@ -645,6 +666,13 @@ export async function printFromRam(dropData, onPrintComplete) {
 
   // FAST ZERO-LATENCY PATH: Check if a pre-warmed iframe is already mounted in DOM
   const fileKey = dropData.file?.id || dropData.file?.name || (dropData.mode === 'idcard' ? 'idcard' : 'primary');
+
+  if (inFlightPrewarms.has(fileKey)) {
+    try {
+      await inFlightPrewarms.get(fileKey);
+    } catch (e) {}
+  }
+
   const prewarmed = prewarmedFrames.get(fileKey);
 
   if (!isMobile && prewarmed && prewarmed.iframe && document.body.contains(prewarmed.iframe)) {
@@ -660,14 +688,17 @@ export async function printFromRam(dropData, onPrintComplete) {
         }
       } catch (err) {
         console.warn('[NullPin RAM Print] Prewarmed print trigger error, falling back:', err);
-        fallbackHtmlPrint(prewarmed.iframe, dropData, isGrayscale, attachAfterPrintListener, finishPrint);
+        fallbackHtmlPrint(prewarmed.iframe, dropData, isGrayscale, attachAfterPrintListener, finishPrint, onDialogOpened);
+      }
+      if (typeof onDialogOpened === 'function') {
+        onDialogOpened();
       }
     };
 
     if (prewarmed.isLoaded) {
       triggerPrewarmed();
     } else {
-      setTimeout(triggerPrewarmed, 200);
+      setTimeout(triggerPrewarmed, 150);
     }
     return;
   }
@@ -725,6 +756,9 @@ export async function printFromRam(dropData, onPrintComplete) {
     // Dispatch clean direct download or native viewer sheet, resolving within 600ms to avoid UI hang.
     if (isMobile) {
       console.log('[NullPin RAM Print] Mobile PDF stream: opening native viewer/download');
+      if (typeof onDialogOpened === 'function') {
+        onDialogOpened();
+      }
       try {
         const link = document.createElement('a');
         link.href = dropData.blobUrl;
@@ -750,16 +784,15 @@ export async function printFromRam(dropData, onPrintComplete) {
     iframe.src = cleanPdfUrl;
 
     let printDispatched = false;
-    let fallbackTimeout = null;
+    let fastTimer = null;
 
     const triggerPdfPrint = () => {
       if (printDispatched) return;
       printDispatched = true;
-      if (fallbackTimeout) clearTimeout(fallbackTimeout);
+      if (fastTimer) clearTimeout(fastTimer);
 
       attachAfterPrintListener();
 
-      // Wait briefly for Chromium PDFium plugin to bind, focus & dispatch print
       setTimeout(() => {
         try {
           if (iframe.contentWindow) {
@@ -768,26 +801,28 @@ export async function printFromRam(dropData, onPrintComplete) {
           }
         } catch (err) {
           console.warn('[NullPin RAM Print] PDF direct print error, fallback to HTML sheet:', err);
-          fallbackHtmlPrint(iframe, dropData, isGrayscale, attachAfterPrintListener, finishPrint);
+          fallbackHtmlPrint(iframe, dropData, isGrayscale, attachAfterPrintListener, finishPrint, onDialogOpened);
         }
-      }, 500);
+        if (typeof onDialogOpened === 'function') {
+          onDialogOpened();
+        }
+      }, 100);
     };
 
     iframe.onload = triggerPdfPrint;
     iframe.onerror = () => {
       if (!printDispatched) {
         printDispatched = true;
-        if (fallbackTimeout) clearTimeout(fallbackTimeout);
-        fallbackHtmlPrint(iframe, dropData, isGrayscale, attachAfterPrintListener, finishPrint);
+        if (fastTimer) clearTimeout(fastTimer);
+        fallbackHtmlPrint(iframe, dropData, isGrayscale, attachAfterPrintListener, finishPrint, onDialogOpened);
+        if (typeof onDialogOpened === 'function') {
+          onDialogOpened();
+        }
       }
     };
 
-    // Safety fallback: in case iframe.onload takes too long or fails to dispatch
-    fallbackTimeout = setTimeout(() => {
-      if (!printDispatched) {
-        triggerPdfPrint();
-      }
-    }, 2000);
+    // Fast 300ms readiness timer (whichever comes first)
+    fastTimer = setTimeout(triggerPdfPrint, 300);
 
     return;
   }
@@ -852,7 +887,7 @@ export async function printFromRam(dropData, onPrintComplete) {
       </html>
     `;
 
-    renderHtmlAndPrint(iframe, htmlDoc, attachAfterPrintListener, finishPrint);
+    renderHtmlAndPrint(iframe, htmlDoc, attachAfterPrintListener, finishPrint, onDialogOpened);
     return;
   }
 
@@ -913,7 +948,7 @@ export async function printFromRam(dropData, onPrintComplete) {
       </html>
     `;
 
-    renderHtmlAndPrint(iframe, htmlDoc, attachAfterPrintListener, finishPrint);
+    renderHtmlAndPrint(iframe, htmlDoc, attachAfterPrintListener, finishPrint, onDialogOpened);
     return;
   }
 
@@ -1000,7 +1035,7 @@ export async function printFromRam(dropData, onPrintComplete) {
       </html>
     `;
 
-    renderHtmlAndPrint(iframe, htmlDoc, attachAfterPrintListener, finishPrint);
+    renderHtmlAndPrint(iframe, htmlDoc, attachAfterPrintListener, finishPrint, onDialogOpened);
     return;
   }
 
@@ -1064,18 +1099,18 @@ export async function printFromRam(dropData, onPrintComplete) {
       </html>
     `;
 
-    renderHtmlAndPrint(iframe, htmlDoc, attachAfterPrintListener, finishPrint);
+    renderHtmlAndPrint(iframe, htmlDoc, attachAfterPrintListener, finishPrint, onDialogOpened);
     return;
   }
 
   // Fallback for any other document mode — render clean verified HTML sheet
-  fallbackHtmlPrint(iframe, dropData, isGrayscale, attachAfterPrintListener, finishPrint);
+  fallbackHtmlPrint(iframe, dropData, isGrayscale, attachAfterPrintListener, finishPrint, onDialogOpened);
 }
 
 /**
  * Renders HTML into iframe, waits for all images to complete loading, then fires print
  */
-function renderHtmlAndPrint(iframe, htmlContent, onAttachListener, onComplete) {
+function renderHtmlAndPrint(iframe, htmlContent, onAttachListener, onComplete, onDialogOpened) {
   const doc = iframe.contentDocument || iframe.contentWindow.document;
   doc.open();
   doc.write(htmlContent);
@@ -1104,6 +1139,9 @@ function renderHtmlAndPrint(iframe, htmlContent, onAttachListener, onComplete) {
         if (typeof onComplete === 'function') {
           onComplete();
         }
+      }
+      if (typeof onDialogOpened === 'function') {
+        onDialogOpened();
       }
     }, 250);
   };
@@ -1141,7 +1179,7 @@ function renderHtmlAndPrint(iframe, htmlContent, onAttachListener, onComplete) {
 /**
  * Fallback HTML document print when PDF blob is not directly printable
  */
-function fallbackHtmlPrint(iframe, dropData, isGrayscale, onAttachListener, onComplete) {
+function fallbackHtmlPrint(iframe, dropData, isGrayscale, onAttachListener, onComplete, onDialogOpened) {
   const fileName = dropData.file?.name || 'Academic_Document.pdf';
   const htmlContent = `
     <!DOCTYPE html>
@@ -1201,7 +1239,8 @@ function fallbackHtmlPrint(iframe, dropData, isGrayscale, onAttachListener, onCo
     iframe,
     htmlContent,
     typeof onAttachListener === 'function' ? onAttachListener : () => {},
-    onComplete
+    onComplete,
+    onDialogOpened
   );
 }
 

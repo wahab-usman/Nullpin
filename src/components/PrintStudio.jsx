@@ -254,6 +254,12 @@ export default function PrintStudio() {
       setIsPrinting(false);
     }, 60000);
 
+    const handleDialogOpened = () => {
+      clearTimeout(watchdogTimer);
+      setPrintingFileId(null);
+      setIsPrinting(false);
+    };
+
     printFromRam({
       ...drop,
       file: fileObj,
@@ -272,7 +278,7 @@ export default function PrintStudio() {
         }
         return nextSet;
       });
-    });
+    }, handleDialogOpened);
   }, [drop, handleSaveArchive, filesList, isMultiFile, handleVaporizeNow, postPrintCountdown, isPrinting, isAutoBurning, isVaporizing]);
 
   // Primary action button handler:
@@ -306,6 +312,11 @@ export default function PrintStudio() {
         setIsPrinting(false);
       }, 60000);
 
+      const handleDialogOpened = () => {
+        clearTimeout(watchdogTimer);
+        setIsPrinting(false);
+      };
+
       printFromRam({
         ...drop,
         file: target,
@@ -317,7 +328,7 @@ export default function PrintStudio() {
         setPrintedFileIds((prev) => new Set([...prev, fKey]));
         // Start 5-second countdown before auto-burn and redirecting home
         setPostPrintCountdown(5);
-      });
+      }, handleDialogOpened);
       return;
     }
 
