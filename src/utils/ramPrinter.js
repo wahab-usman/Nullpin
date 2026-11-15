@@ -557,6 +557,9 @@ export async function printFromRam(dropData, onPrintComplete, onDialogOpened) {
 
   // State to prevent duplicate onPrintComplete triggers
   let isCompleted = false;
+  let printDialogSawBlur = false;
+  let focusPollInterval = null;
+  let focusDelayTimer = null;
   let mobileFallbackTimer = null;
   let globalHardSafetyTimer = null;
   let activePrintFrame = null;
@@ -566,6 +569,14 @@ export async function printFromRam(dropData, onPrintComplete, onDialogOpened) {
     isCompleted = true;
     isGlobalPrintLocked = false;
 
+    if (focusPollInterval) {
+      clearInterval(focusPollInterval);
+      focusPollInterval = null;
+    }
+    if (focusDelayTimer) {
+      clearTimeout(focusDelayTimer);
+      focusDelayTimer = null;
+    }
     if (mobileFallbackTimer) {
       clearTimeout(mobileFallbackTimer);
       mobileFallbackTimer = null;
@@ -575,40 +586,46 @@ export async function printFromRam(dropData, onPrintComplete, onDialogOpened) {
       globalHardSafetyTimer = null;
     }
 
-    // Clean up window and document listeners
+    // Clean up window, document, and iframe listeners
     try {
       window.removeEventListener('afterprint', handleAfterPrint);
       window.removeEventListener('focus', handleFocusReturn);
+      window.removeEventListener('pointermove', handleInteractionReturn);
+      window.removeEventListener('keydown', handleInteractionReturn);
       document.removeEventListener('visibilitychange', handleVisibilityReturn);
       if (activePrintFrame?.contentWindow) {
         activePrintFrame.contentWindow.onafterprint = null;
+        activePrintFrame.contentWindow.removeEventListener('afterprint', handleAfterPrint);
+        activePrintFrame.contentWindow.removeEventListener('focus', handleFocusReturn);
       }
     } catch (e) {}
 
-    // Allow UI to update instantly from Spooling to Printed
+    // Allow UI to update instantly from Printing to 5s Countdown
     if (typeof onPrintComplete === 'function') {
       onPrintComplete();
     }
   };
 
-  const handleVisibilityReturn = () => {
-    if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
-      setTimeout(finishPrint, 250);
+  const handleInteractionReturn = () => {
+    // If the print preview opened and caused blur, any subsequent user interaction on the tab confirms the dialog closed
+    if (printDialogSawBlur) {
+      setTimeout(finishPrint, 50);
     }
   };
 
-  // Listen for window returning to focus AFTER print dialog has genuinely closed
   const handleFocusReturn = () => {
-    setTimeout(() => {
-      finishPrint();
-    }, 300);
+    setTimeout(finishPrint, 50);
   };
 
   const handleAfterPrint = () => {
     // afterprint fired - native print dialog was submitted, saved, or dismissed
-    setTimeout(() => {
-      finishPrint();
-    }, 200);
+    setTimeout(finishPrint, 50);
+  };
+
+  const handleVisibilityReturn = () => {
+    if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+      setTimeout(finishPrint, 150);
+    }
   };
 
   const attachAfterPrintListener = (targetFrame = activePrintFrame) => {
@@ -623,8 +640,42 @@ export async function printFromRam(dropData, onPrintComplete, onDialogOpened) {
 
     if (typeof window !== 'undefined') {
       window.addEventListener('afterprint', handleAfterPrint, { once: true });
-      window.addEventListener('focus', handleFocusReturn, { once: true });
     }
+
+    // 1. Poll document.hasFocus() every 150ms:
+    // When the native Chrome Print Preview dialog (chrome://print) opens over the tab,
+    // document.hasFocus() becomes false. When the user prints or cancels, the modal
+    // closes and document.hasFocus() immediately transitions back to true!
+    if (typeof document !== 'undefined') {
+      focusPollInterval = setInterval(() => {
+        const hasFocus = typeof document.hasFocus === 'function' ? document.hasFocus() : true;
+        if (!hasFocus) {
+          printDialogSawBlur = true;
+        } else if (printDialogSawBlur && hasFocus) {
+          clearInterval(focusPollInterval);
+          focusPollInterval = null;
+          setTimeout(finishPrint, 50);
+        }
+      }, 150);
+    }
+
+    // 2. Attach focus listeners to BOTH window AND iframe.contentWindow after a 500ms delay from .print()
+    focusDelayTimer = setTimeout(() => {
+      if (isCompleted) return;
+
+      try {
+        if (targetFrame?.contentWindow) {
+          targetFrame.contentWindow.addEventListener('focus', handleFocusReturn, { once: true });
+        }
+      } catch (e) {}
+
+      if (typeof window !== 'undefined') {
+        window.addEventListener('focus', handleFocusReturn, { once: true });
+        // Backup triggers: pointermove or keydown when printDialogSawBlur is true
+        window.addEventListener('pointermove', handleInteractionReturn, { passive: true });
+        window.addEventListener('keydown', handleInteractionReturn, { passive: true });
+      }
+    }, 500);
 
     if (typeof document !== 'undefined') {
       document.addEventListener('visibilitychange', handleVisibilityReturn, { once: true });
@@ -791,7 +842,7 @@ export async function printFromRam(dropData, onPrintComplete, onDialogOpened) {
       printDispatched = true;
       if (fastTimer) clearTimeout(fastTimer);
 
-      attachAfterPrintListener();
+      attachAfterPrintListener(iframe);
 
       setTimeout(() => {
         try {
@@ -1117,7 +1168,7 @@ function renderHtmlAndPrint(iframe, htmlContent, onAttachListener, onComplete, o
   doc.close();
 
   if (typeof onAttachListener === 'function') {
-    onAttachListener();
+    onAttachListener(iframe);
   }
 
   let printDispatched = false;

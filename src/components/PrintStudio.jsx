@@ -36,6 +36,7 @@ export default function PrintStudio() {
   const [autoBurnTimer, setAutoBurnTimer] = useState(null);
   const [postPrintCountdown, setPostPrintCountdown] = useState(null);
   const [isPrinting, setIsPrinting] = useState(false);
+  const [isSpooling, setIsSpooling] = useState(false);
   const [printingFileId, setPrintingFileId] = useState(null);
   const [printedFileIds, setPrintedFileIds] = useState(new Set());
 
@@ -246,18 +247,19 @@ export default function PrintStudio() {
     const fKey = fileObj.id || fileObj.name;
     setPrintingFileId(fKey);
     setIsPrinting(true);
+    setIsSpooling(true);
     sound.printBeep();
 
     // Safety watchdog: ensures isPrinting is not stuck permanently
     let watchdogTimer = setTimeout(() => {
       setPrintingFileId(null);
       setIsPrinting(false);
+      setIsSpooling(false);
     }, 60000);
 
     const handleDialogOpened = () => {
-      clearTimeout(watchdogTimer);
-      setPrintingFileId(null);
-      setIsPrinting(false);
+      setIsSpooling(false);
+      // isPrinting remains true so UI displays "Printing..." while Chrome Print dialog is open
     };
 
     printFromRam({
@@ -269,6 +271,7 @@ export default function PrintStudio() {
       clearTimeout(watchdogTimer);
       setPrintingFileId(null);
       setIsPrinting(false);
+      setIsSpooling(false);
       setPrintedFileIds((prev) => {
         const nextSet = new Set([...prev, fKey]);
         const allDone = filesList.length > 0 && filesList.every((f) => nextSet.has(f.id || f.name));
@@ -279,12 +282,12 @@ export default function PrintStudio() {
         return nextSet;
       });
     }, handleDialogOpened);
-  }, [drop, handleSaveArchive, filesList, isMultiFile, handleVaporizeNow, postPrintCountdown, isPrinting, isAutoBurning, isVaporizing]);
+  }, [drop, handleSaveArchive, filesList, isMultiFile, handleVaporizeNow, postPrintCountdown, isPrinting, isSpooling, isAutoBurning, isVaporizing]);
 
   // Primary action button handler:
   // Handles single files, archives, and sequential queue execution for multi-file batches
   const handlePrint = useCallback(() => {
-    if (isPrinting || isAutoBurning || isVaporizing) return;
+    if (isPrinting || isSpooling || isAutoBurning || isVaporizing) return;
     if (postPrintCountdown !== null && postPrintCountdown > 0) {
       handleVaporizeNow();
       return;
@@ -303,6 +306,7 @@ export default function PrintStudio() {
 
     if (!isMultiFile) {
       setIsPrinting(true);
+      setIsSpooling(true);
       sound.printBeep();
       const target = drop?.file || filesList[0];
       const fKey = target?.id || target?.name || 'primary';
@@ -310,11 +314,12 @@ export default function PrintStudio() {
       // Safety watchdog: ensures isPrinting is not stuck permanently
       let watchdogTimer = setTimeout(() => {
         setIsPrinting(false);
+        setIsSpooling(false);
       }, 60000);
 
       const handleDialogOpened = () => {
-        clearTimeout(watchdogTimer);
-        setIsPrinting(false);
+        setIsSpooling(false);
+        // isPrinting remains true so button shows "Printing..." while print dialog is open
       };
 
       printFromRam({
@@ -325,6 +330,7 @@ export default function PrintStudio() {
       }, () => {
         clearTimeout(watchdogTimer);
         setIsPrinting(false);
+        setIsSpooling(false);
         setPrintedFileIds((prev) => new Set([...prev, fKey]));
         // Start 5-second countdown before auto-burn and redirecting home
         setPostPrintCountdown(5);
@@ -337,7 +343,7 @@ export default function PrintStudio() {
     const target = nextTargetFile;
     if (!target) return;
     handlePrintSingleFile(target);
-  }, [drop, isSingleZip, allAreZip, isMultiFile, filesList, nextTargetFile, handlePrintSingleFile, handleSaveArchive, handleVaporizeNow, postPrintCountdown, isPrinting, isAutoBurning, isVaporizing]);
+  }, [drop, isSingleZip, allAreZip, isMultiFile, filesList, nextTargetFile, handlePrintSingleFile, handleSaveArchive, handleVaporizeNow, postPrintCountdown, isPrinting, isSpooling, isAutoBurning, isVaporizing]);
 
   // Block Ctrl+S / Cmd+S on desktop to enforce strict Zero-Download policy
   useEffect(() => {
@@ -484,7 +490,7 @@ export default function PrintStudio() {
                         {isItemPrinting ? (
                           <>
                             <Loader2 className="w-3 h-3 animate-spin" />
-                            <span>Spooling...</span>
+                            <span>{isSpooling ? 'Spooling...' : 'Printing...'}</span>
                           </>
                         ) : isItemPrinted ? (
                           <>
@@ -596,23 +602,7 @@ export default function PrintStudio() {
 
         {/* ================= 4. ACTION BUTTONS ================= */}
         <div className="flex flex-col gap-2.5 pt-1">
-          {postPrintCountdown !== null && postPrintCountdown > 0 ? (
-            <motion.div
-              initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="p-3 rounded-2xl bg-emerald-500/15 border border-emerald-500/35 text-emerald-700 dark:text-emerald-400 text-xs font-semibold flex items-center justify-between"
-            >
-              <div className="flex items-center gap-2">
-                <Check className="w-4 h-4 text-emerald-500 shrink-0" />
-                <span className="text-left font-mono">
-                  Print Complete • Returning to Home in {postPrintCountdown}s...
-                </span>
-              </div>
-              <span className="text-xs font-mono font-black px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 shrink-0">
-                {postPrintCountdown}s
-              </span>
-            </motion.div>
-          ) : printedFileIds.size > 0 && (
+          {postPrintCountdown === null && printedFileIds.size > 0 && (
             <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-xs font-semibold flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Check className="w-4 h-4 text-emerald-500 shrink-0" />
@@ -629,7 +619,7 @@ export default function PrintStudio() {
             <button
               type="button"
               onClick={handlePrint}
-              disabled={isPrinting || isVaporizing}
+              disabled={((isPrinting || isSpooling) && postPrintCountdown === null) || isVaporizing}
               className="relative overflow-hidden w-full py-3.5 sm:py-4 px-4 sm:px-6 rounded-2xl font-bold text-white text-xs sm:text-sm bg-emerald-500 hover:bg-emerald-400 active:scale-[0.98] transition-all flex items-center justify-center gap-2 sm:gap-2.5 cursor-pointer disabled:opacity-50 shadow-[0_10px_25px_rgba(16,185,129,0.3)] min-h-[48px] touch-manipulation group"
             >
               <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none" />
@@ -652,20 +642,25 @@ export default function PrintStudio() {
               <button
                 type="button"
                 onClick={handlePrint}
-                disabled={isPrinting || isVaporizing}
+                disabled={((isPrinting || isSpooling) && postPrintCountdown === null) || isVaporizing}
                 className="relative overflow-hidden w-full py-3 sm:py-3.5 px-4 rounded-xl font-bold text-white text-xs sm:text-sm bg-emerald-500 hover:bg-emerald-400 active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-[0_10px_25px_rgba(16,185,129,0.3)] cursor-pointer disabled:opacity-50 min-h-[46px] touch-manipulation group"
               >
                 <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none" />
-                {isPrinting ? (
+                {isSpooling ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin text-white shrink-0" />
                     <span className="truncate">Spooling...</span>
                   </>
+                ) : isPrinting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin text-white shrink-0" />
+                    <span className="truncate">Printing...</span>
+                  </>
                 ) : postPrintCountdown !== null && postPrintCountdown > 0 ? (
                   <>
-                    <Flame className="w-4 h-4 text-emerald-100 animate-pulse shrink-0" />
+                    <Check className="w-4 h-4 text-emerald-100 shrink-0" />
                     <span className="truncate">
-                      Print Complete • Returning Home in {postPrintCountdown}s (Click to Wipe Now)
+                      ✓ Print Complete • Returning to Home in {postPrintCountdown}s (Click to Wipe Now)
                     </span>
                   </>
                 ) : isMultiFile ? (
@@ -697,7 +692,7 @@ export default function PrintStudio() {
                 <button
                   type="button"
                   onClick={isMultiFile ? handleSaveAllToDevice : () => handleSaveToDevice()}
-                  disabled={isPrinting || isVaporizing}
+                  disabled={isPrinting || isSpooling || isVaporizing}
                   className="relative overflow-hidden w-full py-3 sm:py-3.5 px-4 rounded-xl font-bold text-slate-800 dark:text-zinc-200 text-xs sm:text-sm bg-slate-100 hover:bg-slate-200/80 dark:bg-zinc-800 dark:hover:bg-zinc-700/80 active:scale-[0.98] transition-all border border-slate-300/80 dark:border-zinc-700 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 min-h-[46px] touch-manipulation shadow-xs"
                 >
                   <Download className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
