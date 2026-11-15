@@ -209,12 +209,19 @@ export default function PrintStudio() {
     setIsPrinting(true);
     sound.printBeep();
 
+    // Safety watchdog: ensures isPrinting is never stuck on Spooling...
+    let watchdogTimer = setTimeout(() => {
+      setPrintingFileId(null);
+      setIsPrinting(false);
+    }, 5000);
+
     printFromRam({
       ...drop,
       file: fileObj,
-      rawFile: fileObj.rawFile,
-      blobUrl: fileObj.blobUrl,
+      rawFile: fileObj.rawFile || drop?.rawFile,
+      blobUrl: fileObj.blobUrl || drop?.blobUrl,
     }, () => {
+      clearTimeout(watchdogTimer);
       setPrintingFileId(null);
       setIsPrinting(false);
       setPrintedFileIds((prev) => {
@@ -248,14 +255,21 @@ export default function PrintStudio() {
       setIsPrinting(true);
       sound.printBeep();
       const target = drop?.file || filesList[0];
+      const fKey = target?.id || target?.name || 'primary';
+
+      // Safety watchdog: ensures isPrinting is never stuck on Spooling...
+      let watchdogTimer = setTimeout(() => {
+        setIsPrinting(false);
+      }, 5000);
+
       printFromRam({
         ...drop,
         file: target,
-        rawFile: target?.rawFile,
-        blobUrl: target?.blobUrl,
+        rawFile: target?.rawFile || drop?.rawFile,
+        blobUrl: target?.blobUrl || drop?.blobUrl,
       }, () => {
+        clearTimeout(watchdogTimer);
         setIsPrinting(false);
-        const fKey = target?.id || target?.name || 'primary';
         setPrintedFileIds((prev) => new Set([...prev, fKey]));
         startAutoBurnSequence(3000);
       });

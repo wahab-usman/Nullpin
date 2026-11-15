@@ -177,6 +177,38 @@ let isGlobalPrintLocked = false;
 // Reliable mobile environment detection
 export const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
+// In-memory cache for remote URLs converted to same-origin Blob URLs (avoids repeat downloads)
+const sameOriginBlobCache = new Map();
+
+/**
+ * Resolves any remote or cross-origin URL into a clean same-origin Blob URL in browser memory.
+ * Bypasses CORS print blocks and provides instant printing without re-fetching.
+ */
+export async function ensureSameOriginBlobUrl(url, mimeType = 'application/pdf') {
+  if (!url) return null;
+  // If already a local Blob URL, strip any existing hash or query
+  if (url.startsWith('blob:')) {
+    return url.split('#')[0];
+  }
+  if (sameOriginBlobCache.has(url)) {
+    return sameOriginBlobCache.get(url);
+  }
+
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const buffer = await res.arrayBuffer();
+    const type = mimeType || res.headers.get('content-type') || 'application/pdf';
+    const blob = new Blob([buffer], { type });
+    const localBlobUrl = URL.createObjectURL(blob);
+    sameOriginBlobCache.set(url, localBlobUrl);
+    return localBlobUrl;
+  } catch (err) {
+    console.warn('[NullPin RAM Print] Remote blob fetch error:', err);
+    return url.split('#')[0];
+  }
+}
+
 /**
  * Primary RAM Printing Engine:
  * Creates an isolated hidden iframe that Chrome/Edge/Firefox PDFium & Layout engines
@@ -209,14 +241,15 @@ export async function printFromRam(dropData, onPrintComplete) {
   const iframe = document.createElement('iframe');
   iframe.id = 'nullpin-ram-print-frame';
 
-  // CRITICAL CSS RULE: Do NOT use display:none or visibility:hidden
-  // PDFium requires the iframe to be part of the layout tree to paint pages.
+  // CRITICAL CSS RULE: Chrome's PDF plugin refuses to initialize if iframe is 0px/1px or display:none.
+  // Full 800x600 dimensions off-screen allow immediate PDFium plugin initialization.
   iframe.style.cssText =
-    'position: fixed; right: 0; bottom: 0; width: 1px; height: 1px; border: 0; opacity: 0.01; pointer-events: none; z-index: -1;';
+    'position: fixed; left: -9999px; top: 0; width: 800px; height: 600px; opacity: 0; pointer-events: none; border: 0; z-index: -999;';
 
   // State to prevent duplicate onPrintComplete triggers
   let isCompleted = false;
   let mobileFallbackTimer = null;
+  let globalHardSafetyTimer = null;
 
   const finishPrint = () => {
     if (isCompleted) return;
@@ -226,6 +259,10 @@ export async function printFromRam(dropData, onPrintComplete) {
     if (mobileFallbackTimer) {
       clearTimeout(mobileFallbackTimer);
       mobileFallbackTimer = null;
+    }
+    if (globalHardSafetyTimer) {
+      clearTimeout(globalHardSafetyTimer);
+      globalHardSafetyTimer = null;
     }
 
     // Clean up window and document listeners
@@ -238,17 +275,15 @@ export async function printFromRam(dropData, onPrintComplete) {
       }
     } catch (e) {}
 
-    // Allow the browser print spooler sufficient time to read document data from the iframe
-    setTimeout(() => {
-      if (typeof onPrintComplete === 'function') {
-        onPrintComplete();
-      }
-    }, isMobile ? 350 : 1000);
+    // Allow UI to update instantly from Spooling to Printed
+    if (typeof onPrintComplete === 'function') {
+      onPrintComplete();
+    }
   };
 
   const handleVisibilityReturn = () => {
     if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
-      setTimeout(finishPrint, 400);
+      setTimeout(finishPrint, 300);
     }
   };
 
@@ -258,7 +293,7 @@ export async function printFromRam(dropData, onPrintComplete) {
       if (document.hasFocus()) {
         finishPrint();
       }
-    }, 500);
+    }, 400);
   };
 
   const handleAfterPrint = () => {
@@ -268,7 +303,7 @@ export async function printFromRam(dropData, onPrintComplete) {
     } else {
       window.addEventListener('focus', handleFocusReturn, { once: true });
       // Fallback if focus event is not emitted by OS
-      setTimeout(finishPrint, isMobile ? 1500 : 3500);
+      setTimeout(finishPrint, isMobile ? 1200 : 2500);
     }
   };
 
@@ -294,9 +329,17 @@ export async function printFromRam(dropData, onPrintComplete) {
       mobileFallbackTimer = setTimeout(() => {
         console.log('[NullPin RAM Print] Mobile fallback safety release triggered finishPrint');
         finishPrint();
-      }, 2500);
+      }, 1500);
     }
   };
+
+  // Global safety watchdog: ensures UI is NEVER stuck on Spooling...
+  globalHardSafetyTimer = setTimeout(() => {
+    if (!isCompleted) {
+      console.warn('[NullPin RAM Print] Global safety timeout reached, releasing print lock.');
+      finishPrint();
+    }
+  }, 4500);
 
   // Determine mode and color preference
   const mode = dropData.mode || 'doc';
@@ -315,6 +358,27 @@ export async function printFromRam(dropData, onPrintComplete) {
   const isImage = fileType.startsWith('image/') || /\.(png|jpe?g|webp|svg|gif|bmp)$/i.test(fileName);
   const isText = fileType.startsWith('text/') || /\.(txt|csv|json|md|log|js|html|py)$/i.test(fileName);
 
+  // Extract and ensure clean same-origin Blob URL in RAM
+  let targetBlobUrl = dropData.blobUrl || dropData.file?.blobUrl || null;
+  if (!targetBlobUrl && dropData.rawFile instanceof Blob) {
+    targetBlobUrl = URL.createObjectURL(dropData.rawFile);
+    dropData.blobUrl = targetBlobUrl;
+  } else if (!targetBlobUrl && dropData.file?.rawFile instanceof Blob) {
+    targetBlobUrl = URL.createObjectURL(dropData.file.rawFile);
+    dropData.blobUrl = targetBlobUrl;
+  }
+
+  if (targetBlobUrl) {
+    targetBlobUrl = await ensureSameOriginBlobUrl(
+      targetBlobUrl,
+      dropData.file?.type || (isPdf ? 'application/pdf' : isImage ? 'image/png' : 'application/octet-stream')
+    );
+    dropData.blobUrl = targetBlobUrl;
+    if (dropData.file) {
+      dropData.file.blobUrl = targetBlobUrl;
+    }
+  }
+
   // Append frame to DOM
   document.body.appendChild(iframe);
 
@@ -324,7 +388,7 @@ export async function printFromRam(dropData, onPrintComplete) {
   // ==============================================================
   if (isPdf && dropData.blobUrl) {
     // Mobile PDF handling: iOS Safari and Android Chrome cannot print PDF Blobs inside hidden iframes.
-    // Dispatch clean direct download or native viewer sheet, resolving within 800ms to avoid UI hang.
+    // Dispatch clean direct download or native viewer sheet, resolving within 600ms to avoid UI hang.
     if (isMobile) {
       console.log('[NullPin RAM Print] Mobile PDF stream: opening native viewer/download');
       try {
@@ -343,23 +407,33 @@ export async function printFromRam(dropData, onPrintComplete) {
 
       setTimeout(() => {
         finishPrint();
-      }, 800);
+      }, 500);
       return;
     }
 
-    const pdfParams = '#toolbar=0&navpanes=0&scrollbar=0';
-    iframe.src = dropData.blobUrl.includes('#') ? dropData.blobUrl : `${dropData.blobUrl}${pdfParams}`;
+    // Zero #toolbar=0 params: clean same-origin blob URL prevents Chrome PDF handler hang
+    const cleanPdfUrl = dropData.blobUrl.split('#')[0];
+    iframe.src = cleanPdfUrl;
 
     let printDispatched = false;
+    let fallbackTimeout = null;
+
     const triggerPdfPrint = () => {
       if (printDispatched) return;
       printDispatched = true;
+      if (fallbackTimeout) clearTimeout(fallbackTimeout);
+
       attachAfterPrintListener();
 
+      // Wait briefly for Chromium PDFium plugin to bind, focus & dispatch print
       setTimeout(() => {
         try {
-          iframe.contentWindow.focus();
-          iframe.contentWindow.print();
+          if (iframe.contentWindow) {
+            iframe.contentWindow.focus();
+            iframe.contentWindow.print();
+          }
+          // Immediately resolve the spooling lock once native print dialog is triggered
+          setTimeout(finishPrint, 400);
         } catch (err) {
           console.warn('[NullPin RAM Print] PDF direct print error, fallback to HTML sheet:', err);
           fallbackHtmlPrint(iframe, dropData, isGrayscale, attachAfterPrintListener, finishPrint);
@@ -371,16 +445,17 @@ export async function printFromRam(dropData, onPrintComplete) {
     iframe.onerror = () => {
       if (!printDispatched) {
         printDispatched = true;
+        if (fallbackTimeout) clearTimeout(fallbackTimeout);
         fallbackHtmlPrint(iframe, dropData, isGrayscale, attachAfterPrintListener, finishPrint);
       }
     };
 
     // Safety fallback: in case iframe.onload takes too long or fails to dispatch
-    setTimeout(() => {
+    fallbackTimeout = setTimeout(() => {
       if (!printDispatched) {
         triggerPdfPrint();
       }
-    }, 2500);
+    }, 2000);
 
     return;
   }
@@ -407,6 +482,13 @@ export async function printFromRam(dropData, onPrintComplete) {
             display: flex; flex-direction: column; align-items: center;
           }
           .filter-grayscale { filter: grayscale(100%) contrast(1.05); }
+          @media print {
+            body.filter-grayscale, .filter-grayscale {
+              filter: grayscale(100%) contrast(1.05) !important;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+          }
           .header-meta {
             width: 100%; max-width: 180mm; display: flex; justify-content: space-between;
             font-family: monospace; font-size: 8pt; color: #666;
@@ -460,6 +542,13 @@ export async function printFromRam(dropData, onPrintComplete) {
             background: #ffffff; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;
           }
           .filter-grayscale { filter: grayscale(100%); }
+          @media print {
+            body.filter-grayscale, .filter-grayscale {
+              filter: grayscale(100%) !important;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+          }
           .header {
             width: 100%; display: flex; justify-content: space-between;
             font-family: monospace; font-size: 8.5pt; color: #64748b;
@@ -535,6 +624,13 @@ export async function printFromRam(dropData, onPrintComplete) {
             color: #0f172a; background: #ffffff; margin: 0; padding: 0; font-size: 11pt; line-height: 1.65;
           }
           .filter-grayscale { filter: grayscale(100%); }
+          @media print {
+            body.filter-grayscale, .filter-grayscale {
+              filter: grayscale(100%) !important;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+          }
           .doc-header {
             display: flex; justify-content: space-between; border-bottom: 1.5px solid #0f172a;
             padding-bottom: 4mm; margin-bottom: 8mm; font-family: monospace; font-size: 8.5pt; color: #475569;
@@ -601,6 +697,13 @@ export async function printFromRam(dropData, onPrintComplete) {
             background: white; color: #1e293b; font-size: 9.5pt; line-height: 1.55; margin: 0; padding: 0;
           }
           .filter-grayscale { filter: grayscale(100%); }
+          @media print {
+            body.filter-grayscale, .filter-grayscale {
+              filter: grayscale(100%) !important;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+          }
           .header {
             display: flex; justify-content: space-between; border-bottom: 1.5px solid #0f172a;
             padding-bottom: 3mm; margin-bottom: 6mm; font-size: 8.5pt; font-weight: bold;
@@ -651,14 +754,25 @@ function renderHtmlAndPrint(iframe, htmlContent, onAttachListener, onComplete) {
   }
 
   let printDispatched = false;
+  let safetyTimeout = null;
+
   const executePrint = () => {
     if (printDispatched) return;
     printDispatched = true;
+    if (safetyTimeout) clearTimeout(safetyTimeout);
 
     setTimeout(() => {
       try {
-        iframe.contentWindow.focus();
-        iframe.contentWindow.print();
+        if (iframe.contentWindow) {
+          iframe.contentWindow.focus();
+          iframe.contentWindow.print();
+        }
+        // Immediately release the spooling lock & notify UI that spooling succeeded
+        setTimeout(() => {
+          if (typeof onComplete === 'function') {
+            onComplete();
+          }
+        }, 400);
       } catch (e) {
         console.error('[NullPin RAM Print] Error calling contentWindow.print():', e);
         if (typeof onComplete === 'function') {
@@ -692,11 +806,11 @@ function renderHtmlAndPrint(iframe, htmlContent, onAttachListener, onComplete) {
   });
 
   // Fallback timeout in case image loading stalls (only if not already printed)
-  setTimeout(() => {
+  safetyTimeout = setTimeout(() => {
     if (!printDispatched) {
       executePrint();
     }
-  }, 1200);
+  }, 1000);
 }
 
 /**
