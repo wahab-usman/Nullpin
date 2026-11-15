@@ -215,10 +215,35 @@ export async function ensureSameOriginBlobUrl(url, mimeType = 'application/pdf')
 // BEFORE the user clicks 'Print'.
 // =========================================================================
 
-// Registry of pre-warmed iframe instances: Map<fileKey, { iframe, isLoaded, blobUrl, type }>
+// Registry of pre-warmed iframe instances: Map<fileKey, { iframe, isLoaded, blobUrl, type, timestamp }>
 const prewarmedFrames = new Map();
 // In-flight prewarm promises map to deduplicate concurrent requests
 const inFlightPrewarms = new Map();
+// Cap concurrent DOM iframe instances to MAX 2 to prevent Chromium CPU & process choke
+const MAX_PREWARMED_IFRAMES = 2;
+
+function evictExcessPrewarmedFrames(excludeKey = null) {
+  while (prewarmedFrames.size >= MAX_PREWARMED_IFRAMES) {
+    let oldestKey = null;
+    let oldestTime = Infinity;
+    for (const [key, rec] of prewarmedFrames.entries()) {
+      if (key === excludeKey) continue;
+      const t = rec.timestamp || 0;
+      if (t < oldestTime) {
+        oldestTime = t;
+        oldestKey = key;
+      }
+    }
+    if (!oldestKey) break;
+    const rec = prewarmedFrames.get(oldestKey);
+    try {
+      if (rec?.iframe && rec.iframe.parentNode) {
+        rec.iframe.parentNode.removeChild(rec.iframe);
+      }
+    } catch (e) {}
+    prewarmedFrames.delete(oldestKey);
+  }
+}
 
 /**
  * Destroys all pre-warmed iframes from the DOM and clears the cache
@@ -344,8 +369,8 @@ export function getImageHtml(rawFileName, blobUrl, isGrayscale) {
   `;
 }
 
-async function prewarmFileIframe(fileObj, dropData) {
-  if (typeof document === 'undefined' || isMobile) return null;
+export async function prewarmFileIframe(fileObj, dropData) {
+  if (typeof document === 'undefined' || isMobile || !fileObj) return null;
   const fileKey = fileObj.id || fileObj.name || 'primary';
 
   if (inFlightPrewarms.has(fileKey)) {
@@ -353,19 +378,20 @@ async function prewarmFileIframe(fileObj, dropData) {
   }
 
   const existing = prewarmedFrames.get(fileKey);
-  if (existing && existing.iframe && document.body.contains(existing.iframe) && existing.isLoaded) {
+  if (existing && existing.iframe && document.body.contains(existing.iframe)) {
+    existing.timestamp = Date.now();
     return existing;
   }
 
   const prewarmPromise = (async () => {
-    const rawFileName = fileObj.name || dropData.file?.name || '';
+    const rawFileName = fileObj.name || dropData?.file?.name || '';
     const fileName = rawFileName.toLowerCase();
-    const fileType = (fileObj.type || dropData.file?.type || '').toLowerCase();
+    const fileType = (fileObj.type || dropData?.file?.type || '').toLowerCase();
 
     const isPdf = (fileType === 'application/pdf' || fileName.endsWith('.pdf')) &&
                   !fileName.endsWith('.docx') && !fileName.endsWith('.doc');
     const isImage = fileType.startsWith('image/') || /\.(png|jpe?g|webp|svg|gif|bmp)$/i.test(fileName);
-    const colorPref = dropData.prefs?.colorMode || dropData.printPrefs?.color || 'bw';
+    const colorPref = dropData?.prefs?.colorMode || dropData?.printPrefs?.color || 'bw';
     const isGrayscale = colorPref === 'bw';
 
     let cleanUrl = fileObj.blobUrl;
@@ -379,6 +405,9 @@ async function prewarmFileIframe(fileObj, dropData) {
       fileObj.blobUrl = cleanUrl;
     }
 
+    // Cap concurrent DOM iframes to max 2 to prevent Chromium CPU & process choke
+    evictExcessPrewarmedFrames(fileKey);
+
     const frameId = `nullpin-prewarm-${String(fileKey).replace(/[^a-zA-Z0-9_-]/g, '_')}`;
     let iframe = document.getElementById(frameId);
     if (!iframe) {
@@ -389,7 +418,13 @@ async function prewarmFileIframe(fileObj, dropData) {
       document.body.appendChild(iframe);
     }
 
-    const record = { iframe, isLoaded: false, blobUrl: cleanUrl, type: isPdf ? 'pdf' : isImage ? 'image' : 'html' };
+    const record = {
+      iframe,
+      isLoaded: false,
+      blobUrl: cleanUrl,
+      type: isPdf ? 'pdf' : isImage ? 'image' : 'html',
+      timestamp: Date.now()
+    };
     prewarmedFrames.set(fileKey, record);
 
     if (isPdf && cleanUrl) {
@@ -401,8 +436,8 @@ async function prewarmFileIframe(fileObj, dropData) {
       iframe.onerror = () => {
         record.isLoaded = false;
       };
-      // Chrome PDFium plugin parses multi-page PDFs in background
-      setTimeout(() => { record.isLoaded = true; }, 1000);
+      // Chrome PDFium plugin background parse readiness
+      setTimeout(() => { record.isLoaded = true; }, 800);
       return record;
     }
 
@@ -489,8 +524,11 @@ async function prewarmIdCardIframe(dropData) {
 }
 
 /**
- * Eagerly pre-fetches and caches all files in a drop into same-origin Blobs and Object URLs,
- * and pre-mounts & pre-renders iframes in DOM so clicking 'Print' previews instantly in 0ms.
+ * Eagerly pre-fetches all files in a drop into same-origin Blobs and Object URLs.
+ * Uses a priority queue with max concurrency of 2:
+ * 1. File #1 is fetched first with highest priority and immediately pre-warmed in DOM (< 500ms).
+ * 2. Remaining files (#2 through #N, supporting 8, 10, 20+ files) are pre-fetched 2-at-a-time into RAM.
+ * 3. Keeps at most 2 pre-warmed <iframe> instances in document.body to avoid PDFium thread choke.
  */
 export async function preloadDropBlobs(drop) {
   if (!drop) return;
@@ -498,41 +536,71 @@ export async function preloadDropBlobs(drop) {
     ? drop.files
     : (drop.file ? [drop.file] : []);
 
-  const tasks = list.map(async (fileObj) => {
-    let url = fileObj.blobUrl || drop.blobUrl;
-    if (!url && fileObj.rawFile instanceof Blob) {
-      url = URL.createObjectURL(fileObj.rawFile);
-      fileObj.blobUrl = url;
+  if (list.length === 0 && drop.mode !== 'idcard') return;
+
+  const prefetchSingleFile = async (fileObj) => {
+    if (!fileObj) return;
+    try {
+      let url = fileObj.blobUrl || drop.blobUrl;
+      if (!url && fileObj.rawFile instanceof Blob) {
+        url = URL.createObjectURL(fileObj.rawFile);
+        fileObj.blobUrl = url;
+      }
+      if (url) {
+        const fileName = (fileObj.name || '').toLowerCase();
+        const fileType = (fileObj.type || '').toLowerCase();
+        const isPdf = fileType === 'application/pdf' || fileName.endsWith('.pdf');
+        const isImg = fileType.startsWith('image/') || /\.(png|jpe?g|webp|svg|gif|bmp)$/i.test(fileName);
+        const mime = fileObj.type || (isPdf ? 'application/pdf' : isImg ? 'image/png' : 'application/octet-stream');
+        const cleanBlobUrl = await ensureSameOriginBlobUrl(url, mime);
+        fileObj.blobUrl = cleanBlobUrl;
+      }
+    } catch (err) {
+      console.warn('[NullPin RAM Print] Error prefetching file blob:', fileObj?.name, err);
     }
-    if (url) {
-      const isPdf = (fileObj.type === 'application/pdf' || (fileObj.name || '').toLowerCase().endsWith('.pdf'));
-      const isImg = (fileObj.type || '').startsWith('image/') || /\.(png|jpe?g|webp|svg|gif|bmp)$/i.test(fileObj.name || '');
-      const mime = fileObj.type || (isPdf ? 'application/pdf' : isImg ? 'image/png' : 'application/octet-stream');
-      const cleanBlobUrl = await ensureSameOriginBlobUrl(url, mime);
-      fileObj.blobUrl = cleanBlobUrl;
-    }
-  });
+  };
 
   if (drop.mode === 'idcard') {
-    if (drop.frontBlobUrl) {
-      tasks.push(ensureSameOriginBlobUrl(drop.frontBlobUrl, 'image/jpeg'));
+    const tasks = [];
+    if (drop.frontBlobUrl) tasks.push(ensureSameOriginBlobUrl(drop.frontBlobUrl, 'image/jpeg'));
+    if (drop.backBlobUrl) tasks.push(ensureSameOriginBlobUrl(drop.backBlobUrl, 'image/jpeg'));
+    await Promise.allSettled(tasks);
+    if (!isMobile) {
+      await prewarmIdCardIframe(drop);
     }
-    if (drop.backBlobUrl) {
-      tasks.push(ensureSameOriginBlobUrl(drop.backBlobUrl, 'image/jpeg'));
-    }
+    return;
   }
 
-  await Promise.allSettled(tasks);
+  // PRIORITY 1: Fetch and pre-warm File #1 immediately!
+  const firstFile = list[0];
+  await prefetchSingleFile(firstFile);
 
-  // Pre-mount & pre-render iframes on Desktop in background while user views PIN unlock screen
-  if (!isMobile) {
-    if (drop.mode === 'idcard') {
-      await prewarmIdCardIframe(drop);
-    } else {
-      const prewarmTargets = list.slice(0, 6);
-      for (const f of prewarmTargets) {
-        await prewarmFileIframe(f, drop);
+  if (!isMobile && firstFile) {
+    // Immediately pre-warm File #1's iframe in slot 1 so it is ready in < 500ms!
+    prewarmFileIframe(firstFile, drop).catch(() => {});
+  }
+
+  // PRIORITY 2: Concurrency-limited background fetching for remaining files (#2 to #N)
+  // Max concurrency = 2 prevents network connection saturation and UI thread lag
+  if (list.length > 1) {
+    const queue = list.slice(1);
+    const worker = async () => {
+      while (queue.length > 0) {
+        const item = queue.shift();
+        await prefetchSingleFile(item);
       }
+    };
+
+    const workerCount = Math.min(2, queue.length);
+    const workers = [];
+    for (let w = 0; w < workerCount; w++) {
+      workers.push(worker());
+    }
+    await Promise.all(workers);
+
+    // After remaining files are pre-fetched into RAM, pre-warm File #2 in the 2nd iframe slot!
+    if (!isMobile && list[1]) {
+      prewarmFileIframe(list[1], drop).catch(() => {});
     }
   }
 }

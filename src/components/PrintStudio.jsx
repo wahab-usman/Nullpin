@@ -8,7 +8,7 @@ import {
 import { useNullPin } from '../store/NullPinContext';
 import { sound } from '../utils/sound';
 import { fireVaporizeSparks } from './VaporizeEffect';
-import { printFromRam, preloadDropBlobs } from '../utils/ramPrinter';
+import { printFromRam, preloadDropBlobs, prewarmFileIframe } from '../utils/ramPrinter';
 
 function formatSize(bytes) {
   if (!bytes) return '1.8 MB';
@@ -57,6 +57,8 @@ export default function PrintStudio() {
   const isMultiFile = filesList.length > 1;
   const totalBytes = filesList.reduce((acc, f) => acc + (f.size || 0), 0);
 
+  const getFileKey = useCallback((f, idx) => (f?.id ? String(f.id) : `${f?.name || 'file'}-${idx}`), []);
+
   const allAreZip = filesList.length > 0 && filesList.every(isZipFile);
   const isSingleZip = !isMultiFile && isZipFile(drop?.file);
 
@@ -78,10 +80,10 @@ export default function PrintStudio() {
       )) || isCapacitorNative;
 
   // Multi-file queue progress calculation
-  const unprintedFiles = filesList.filter((f) => !printedFileIds.has(f.id || f.name));
+  const unprintedFiles = filesList.filter((f, idx) => !printedFileIds.has(getFileKey(f, idx)));
   const nextTargetFile = unprintedFiles.length > 0 ? unprintedFiles[0] : filesList[0];
-  const allFilesPrinted = filesList.length > 0 && filesList.every((f) => printedFileIds.has(f.id || f.name));
-  const printedCount = filesList.filter((f) => printedFileIds.has(f.id || f.name)).length;
+  const allFilesPrinted = filesList.length > 0 && filesList.every((f, idx) => printedFileIds.has(getFileKey(f, idx)));
+  const printedCount = filesList.filter((f, idx) => printedFileIds.has(getFileKey(f, idx))).length;
   const [burnStatusMessage, setBurnStatusMessage] = useState('Print complete. Auto-purging RAM buffer in 3 seconds...');
 
   // Auto-Burn sequence: initiates zero-trace RAM wipe once print/save completes
@@ -104,9 +106,9 @@ export default function PrintStudio() {
   }, [triggerVaporize]);
 
   // Save / extract ZIP archive from RAM
-  const handleSaveArchive = useCallback((fileObj) => {
+  const handleSaveArchive = useCallback((fileObj, fileIndex = 0) => {
     if (isVaporizing) return;
-    const fKey = fileObj.id || fileObj.name;
+    const fKey = getFileKey(fileObj, fileIndex);
     const url = fileObj.blobUrl || (fileObj.rawFile instanceof Blob ? URL.createObjectURL(fileObj.rawFile) : null);
     if (!url) return;
 
@@ -120,16 +122,16 @@ export default function PrintStudio() {
 
     setPrintedFileIds((prev) => {
       const nextSet = new Set([...prev, fKey]);
-      const allDone = filesList.length > 0 && filesList.every((f) => nextSet.has(f.id || f.name));
+      const allDone = filesList.length > 0 && filesList.every((f, i) => nextSet.has(getFileKey(f, i)));
       if (allDone) {
         startAutoBurnSequence(3000, 'Archive saved to device! Auto-purging RAM buffer in 3 seconds...');
       }
       return nextSet;
     });
-  }, [filesList, startAutoBurnSequence, isVaporizing]);
+  }, [filesList, startAutoBurnSequence, isVaporizing, getFileKey]);
 
   // Save single file or payload directly to device memory / filesystem
-  const handleSaveToDevice = useCallback((fileObj = null) => {
+  const handleSaveToDevice = useCallback((fileObj = null, fileIndex = 0) => {
     if (isVaporizing) return;
     const target = fileObj || drop?.file || filesList[0];
 
@@ -163,7 +165,7 @@ export default function PrintStudio() {
     }
 
     if (!target) return;
-    const fKey = target.id || target.name || 'primary';
+    const fKey = fileObj ? getFileKey(fileObj, fileIndex) : (target.id || target.name || 'primary');
     const url = target.blobUrl || drop?.blobUrl || (target.rawFile instanceof Blob ? URL.createObjectURL(target.rawFile) : null);
     if (!url) return;
 
@@ -177,13 +179,13 @@ export default function PrintStudio() {
 
     setPrintedFileIds((prev) => {
       const nextSet = new Set([...prev, fKey]);
-      const allDone = filesList.length === 0 || filesList.every((f) => nextSet.has(f.id || f.name));
+      const allDone = filesList.length === 0 || filesList.every((f, i) => nextSet.has(getFileKey(f, i)));
       if (allDone) {
         startAutoBurnSequence(3000, 'Payload saved to device! Auto-purging RAM buffer in 3 seconds...');
       }
       return nextSet;
     });
-  }, [drop, filesList, isVaporizing, startAutoBurnSequence]);
+  }, [drop, filesList, isVaporizing, startAutoBurnSequence, getFileKey]);
 
   // Save all files in multi-file batch to device
   const handleSaveAllToDevice = useCallback(() => {
@@ -203,10 +205,10 @@ export default function PrintStudio() {
       }, index * 250);
     });
 
-    const allKeys = filesList.map((f) => f.id || f.name);
+    const allKeys = filesList.map((f, i) => getFileKey(f, i));
     setPrintedFileIds(new Set(allKeys));
     startAutoBurnSequence(3000, `All ${filesList.length} files saved! Auto-purging RAM buffer in 3 seconds...`);
-  }, [filesList, isVaporizing, startAutoBurnSequence]);
+  }, [filesList, isVaporizing, startAutoBurnSequence, getFileKey]);
 
   const handleVaporizeNow = useCallback(() => {
     if (autoBurnTimer) clearTimeout(autoBurnTimer);
@@ -234,17 +236,17 @@ export default function PrintStudio() {
   }, [postPrintCountdown, handleVaporizeNow]);
 
   // Print individual file from manifest
-  const handlePrintSingleFile = useCallback((fileObj) => {
+  const handlePrintSingleFile = useCallback((fileObj, fileIndex = 0) => {
     if (isPrinting || isAutoBurning || isVaporizing) return;
     if (postPrintCountdown !== null && postPrintCountdown > 0) {
       handleVaporizeNow();
       return;
     }
     if (isZipFile(fileObj)) {
-      handleSaveArchive(fileObj);
+      handleSaveArchive(fileObj, fileIndex);
       return;
     }
-    const fKey = fileObj.id || fileObj.name;
+    const fKey = getFileKey(fileObj, fileIndex);
     setPrintingFileId(fKey);
     setIsPrinting(true);
     setIsSpooling(true);
@@ -274,15 +276,21 @@ export default function PrintStudio() {
       setIsSpooling(false);
       setPrintedFileIds((prev) => {
         const nextSet = new Set([...prev, fKey]);
-        const allDone = filesList.length > 0 && filesList.every((f) => nextSet.has(f.id || f.name));
+        const allDone = filesList.length > 0 && filesList.every((f, i) => nextSet.has(getFileKey(f, i)));
         if (allDone || !isMultiFile) {
           // Start 5-second countdown before auto-burn and redirecting home
           setPostPrintCountdown(5);
+        } else {
+          // Pre-warm the next unprinted file in the pool
+          const nextUnprinted = filesList.find((f, i) => !nextSet.has(getFileKey(f, i)));
+          if (nextUnprinted) {
+            prewarmFileIframe(nextUnprinted, drop).catch(() => {});
+          }
         }
         return nextSet;
       });
     }, handleDialogOpened);
-  }, [drop, handleSaveArchive, filesList, isMultiFile, handleVaporizeNow, postPrintCountdown, isPrinting, isSpooling, isAutoBurning, isVaporizing]);
+  }, [drop, handleSaveArchive, filesList, isMultiFile, handleVaporizeNow, postPrintCountdown, isPrinting, isAutoBurning, isVaporizing, getFileKey]);
 
   // Primary action button handler:
   // Handles single files, archives, and sequential queue execution for multi-file batches
@@ -294,13 +302,14 @@ export default function PrintStudio() {
     }
 
     if (isSingleZip) {
-      handleSaveArchive(drop.file || filesList[0]);
+      handleSaveArchive(drop.file || filesList[0], 0);
       return;
     }
 
     if (allAreZip) {
       const targetZip = nextTargetFile || filesList[0];
-      handleSaveArchive(targetZip);
+      const targetIdx = filesList.findIndex((f, idx) => getFileKey(f, idx) === getFileKey(targetZip, filesList.indexOf(targetZip)));
+      handleSaveArchive(targetZip, targetIdx >= 0 ? targetIdx : 0);
       return;
     }
 
@@ -309,7 +318,7 @@ export default function PrintStudio() {
       setIsSpooling(true);
       sound.printBeep();
       const target = drop?.file || filesList[0];
-      const fKey = target?.id || target?.name || 'primary';
+      const fKey = target ? getFileKey(target, 0) : 'primary';
 
       // Safety watchdog: ensures isPrinting is not stuck permanently
       let watchdogTimer = setTimeout(() => {
@@ -342,8 +351,9 @@ export default function PrintStudio() {
     // Bypasses browser popup blocking and prevents stalled print queues
     const target = nextTargetFile;
     if (!target) return;
-    handlePrintSingleFile(target);
-  }, [drop, isSingleZip, allAreZip, isMultiFile, filesList, nextTargetFile, handlePrintSingleFile, handleSaveArchive, handleVaporizeNow, postPrintCountdown, isPrinting, isSpooling, isAutoBurning, isVaporizing]);
+    const targetIdx = filesList.findIndex((f, idx) => getFileKey(f, idx) === getFileKey(target, filesList.indexOf(target)));
+    handlePrintSingleFile(target, targetIdx >= 0 ? targetIdx : 0);
+  }, [drop, isSingleZip, allAreZip, isMultiFile, filesList, nextTargetFile, handlePrintSingleFile, handleSaveArchive, handleVaporizeNow, postPrintCountdown, isPrinting, isSpooling, isAutoBurning, isVaporizing, getFileKey]);
 
   // Block Ctrl+S / Cmd+S on desktop to enforce strict Zero-Download policy
   useEffect(() => {
@@ -436,7 +446,7 @@ export default function PrintStudio() {
             {/* List of files with individual print/save actions */}
             <div className="max-h-40 overflow-y-auto pr-1 space-y-1.5 custom-scrollbar">
               {filesList.map((f, idx) => {
-                const fKey = f.id || f.name || String(idx);
+                const fKey = getFileKey(f, idx);
                 const isItemPrinting = printingFileId === fKey;
                 const isItemPrinted = printedFileIds.has(fKey);
                 const isZip = isZipFile(f);
@@ -469,7 +479,7 @@ export default function PrintStudio() {
                         <button
                           type="button"
                           title="Save to Device"
-                          onClick={() => handleSaveToDevice(f)}
+                          onClick={() => handleSaveToDevice(f, idx)}
                           disabled={isItemPrinting || isVaporizing}
                           className="p-1.5 sm:p-2 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-300 transition-all cursor-pointer touch-manipulation min-h-[34px] min-w-[34px] flex items-center justify-center border border-slate-200 dark:border-zinc-700/60"
                         >
@@ -479,7 +489,9 @@ export default function PrintStudio() {
 
                       <button
                         type="button"
-                        onClick={() => handlePrintSingleFile(f)}
+                        onClick={() => handlePrintSingleFile(f, idx)}
+                        onMouseEnter={() => prewarmFileIframe(f, drop)}
+                        onTouchStart={() => prewarmFileIframe(f, drop)}
                         disabled={isItemPrinting}
                         className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer shrink-0 touch-manipulation min-h-[34px] ${
                           isItemPrinted
@@ -619,6 +631,8 @@ export default function PrintStudio() {
             <button
               type="button"
               onClick={handlePrint}
+              onMouseEnter={() => nextTargetFile && prewarmFileIframe(nextTargetFile, drop)}
+              onTouchStart={() => nextTargetFile && prewarmFileIframe(nextTargetFile, drop)}
               disabled={((isPrinting || isSpooling) && postPrintCountdown === null) || isVaporizing}
               className="relative overflow-hidden w-full py-3.5 sm:py-4 px-4 sm:px-6 rounded-2xl font-bold text-white text-xs sm:text-sm bg-emerald-500 hover:bg-emerald-400 active:scale-[0.98] transition-all flex items-center justify-center gap-2 sm:gap-2.5 cursor-pointer disabled:opacity-50 shadow-[0_10px_25px_rgba(16,185,129,0.3)] min-h-[48px] touch-manipulation group"
             >
@@ -642,6 +656,8 @@ export default function PrintStudio() {
               <button
                 type="button"
                 onClick={handlePrint}
+                onMouseEnter={() => nextTargetFile && prewarmFileIframe(nextTargetFile, drop)}
+                onTouchStart={() => nextTargetFile && prewarmFileIframe(nextTargetFile, drop)}
                 disabled={((isPrinting || isSpooling) && postPrintCountdown === null) || isVaporizing}
                 className="relative overflow-hidden w-full py-3 sm:py-3.5 px-4 rounded-xl font-bold text-white text-xs sm:text-sm bg-emerald-500 hover:bg-emerald-400 active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-[0_10px_25px_rgba(16,185,129,0.3)] cursor-pointer disabled:opacity-50 min-h-[46px] touch-manipulation group"
               >
