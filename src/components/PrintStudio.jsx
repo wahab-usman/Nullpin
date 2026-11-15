@@ -233,16 +233,9 @@ export default function PrintStudio() {
       clearTimeout(watchdogTimer);
       setPrintingFileId(null);
       setIsPrinting(false);
-      setPrintedFileIds((prev) => {
-        const nextSet = new Set([...prev, fKey]);
-        const allDone = filesList.length > 0 && filesList.every((f) => nextSet.has(f.id || f.name));
-        if (allDone) {
-          startAutoBurnSequence(120000, 'Print job active. Auto-purging RAM buffer in 2 minutes...');
-        }
-        return nextSet;
-      });
+      setPrintedFileIds((prev) => new Set([...prev, fKey]));
     });
-  }, [drop, handleSaveArchive, filesList, startAutoBurnSequence, isPrinting, isAutoBurning, isVaporizing]);
+  }, [drop, handleSaveArchive, filesList, isPrinting, isAutoBurning, isVaporizing]);
 
   // Primary action button handler:
   // Handles single files, archives, and sequential queue execution for multi-file batches
@@ -280,7 +273,6 @@ export default function PrintStudio() {
         clearTimeout(watchdogTimer);
         setIsPrinting(false);
         setPrintedFileIds((prev) => new Set([...prev, fKey]));
-        startAutoBurnSequence(120000, 'Print job active. Auto-purging RAM buffer in 2 minutes...');
       });
       return;
     }
@@ -290,7 +282,7 @@ export default function PrintStudio() {
     const target = nextTargetFile;
     if (!target) return;
     handlePrintSingleFile(target);
-  }, [drop, isSingleZip, allAreZip, isMultiFile, filesList, nextTargetFile, handlePrintSingleFile, handleSaveArchive, startAutoBurnSequence, isPrinting, isAutoBurning, isVaporizing]);
+  }, [drop, isSingleZip, allAreZip, isMultiFile, filesList, nextTargetFile, handlePrintSingleFile, handleSaveArchive, isPrinting, isAutoBurning, isVaporizing]);
 
   const handleVaporizeNow = useCallback(() => {
     if (autoBurnTimer) clearTimeout(autoBurnTimer);
@@ -560,21 +552,7 @@ export default function PrintStudio() {
 
         {/* ================= 4. ACTION BUTTONS ================= */}
         <div className="flex flex-col gap-2.5 pt-1">
-          {isAutoBurning ? (
-            <motion.div
-              initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="p-3 sm:p-3.5 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-semibold flex items-center justify-between"
-            >
-              <div className="flex items-center gap-2">
-                <Flame className="w-4 h-4 text-rose-500 animate-pulse shrink-0" />
-                <span className="text-left">{burnStatusMessage}</span>
-              </div>
-              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-rose-500/20 text-rose-500 shrink-0 uppercase tracking-wider">
-                AUTO-BURN
-              </span>
-            </motion.div>
-          ) : printedFileIds.size > 0 && (
+          {printedFileIds.size > 0 && (
             <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-xs font-semibold flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Check className="w-4 h-4 text-emerald-500 shrink-0" />
@@ -586,17 +564,7 @@ export default function PrintStudio() {
             </div>
           )}
 
-          {isAutoBurning ? (
-            <button
-              type="button"
-              onClick={handleVaporizeNow}
-              disabled={isVaporizing}
-              className="relative overflow-hidden w-full py-3.5 sm:py-4 px-4 sm:px-6 rounded-2xl font-bold text-white text-xs sm:text-sm bg-rose-500 hover:bg-rose-600 active:scale-[0.98] transition-all flex items-center justify-center gap-2 sm:gap-2.5 cursor-pointer shadow-[0_10px_25px_rgba(244,63,94,0.35)] animate-pulse min-h-[48px] touch-manipulation group"
-            >
-              <Flame className="w-4 h-4 animate-bounce text-white shrink-0" />
-              <span className="truncate">Auto-Purging RAM Now (Click to Wipe Instantly)</span>
-            </button>
-          ) : isSingleZip || allAreZip ? (
+          {isSingleZip || allAreZip ? (
             /* ZIP Archive Save Button */
             <button
               type="button"
@@ -649,7 +617,7 @@ export default function PrintStudio() {
                   <>
                     <Printer className="w-4 h-4 text-emerald-100 shrink-0" />
                     <span className="truncate">
-                      {printedFileIds.size > 0 ? 'Print Again' : 'Print Direct'}
+                      {printedFileIds.size > 0 ? 'Print Again' : isIdCard ? 'Print ID Card' : 'Print Document'}
                     </span>
                   </>
                 )}

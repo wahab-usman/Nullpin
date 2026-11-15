@@ -200,6 +200,10 @@ export async function getDropRecord(pin) {
       textContent: record.textContent,
       prefs: record.prefs,
       status: record.status,
+      createdAt: record.createdAt,
+      expiresAt: record.expiresAt,
+      created_at: record.created_at,
+      expires_at: record.expires_at,
     };
   } catch (err) {
     console.error('Failed to get drop from cross-tab store:', err);

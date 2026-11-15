@@ -500,6 +500,10 @@ export async function fetchDropFromSupabase(pin) {
       textContent: record.text_content,
       prefs: record.prefs,
       status: record.status,
+      created_at: record.created_at,
+      expires_at: record.expires_at,
+      createdAt: record.created_at ? new Date(record.created_at).getTime() : Date.now(),
+      expiresAt: record.expires_at ? new Date(record.expires_at).getTime() : Date.now() + 5 * 60 * 1000,
     };
   } catch (err) {
     console.warn('[NullPin Supabase] Fetch drop error:', err);

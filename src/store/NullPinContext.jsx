@@ -48,6 +48,25 @@ function resolveFileType(file) {
   return file?.type || 'application/octet-stream';
 }
 
+function calculateRemainingSeconds(drop) {
+  if (!drop) return 300;
+  let expireTimestamp = drop.expiresAt;
+  if (!expireTimestamp && drop.expires_at) {
+    expireTimestamp = new Date(drop.expires_at).getTime();
+  }
+  if (!expireTimestamp && drop.created_at) {
+    expireTimestamp = new Date(drop.created_at).getTime() + 5 * 60 * 1000;
+  }
+  if (!expireTimestamp && drop.createdAt) {
+    expireTimestamp = drop.createdAt + 5 * 60 * 1000;
+  }
+  if (expireTimestamp) {
+    const diffSeconds = Math.max(0, Math.floor((expireTimestamp - Date.now()) / 1000));
+    return Math.min(300, diffSeconds);
+  }
+  return 300;
+}
+
 export function NullPinProvider({ children }) {
   // Current mode for the central stage: default to 'send' (Send Drop opens first)
   const [activeStageTab, setActiveStageTab] = useState('send');
@@ -247,6 +266,9 @@ export function NullPinProvider({ children }) {
     if (activeDrop && String(activeDrop.pin) === searchPin && activeDrop.status !== 'burned') {
       sound.unlockChime();
       const updated = { ...activeDrop, status: 'opened' };
+      const remaining = calculateRemainingSeconds(updated);
+      setTimeLeft(remaining);
+      setIsTimerActive(true);
       setActiveDrop(updated);
       setUnlockedDrop(updated);
       setCurrentView('studio');
@@ -260,6 +282,9 @@ export function NullPinProvider({ children }) {
     if (crossTabDrop && crossTabDrop.status !== 'burned') {
       sound.unlockChime();
       const openedDrop = { ...crossTabDrop, status: 'opened' };
+      const remaining = calculateRemainingSeconds(openedDrop);
+      setTimeLeft(remaining);
+      setIsTimerActive(true);
       setActiveDrop(openedDrop);
       setUnlockedDrop(openedDrop);
       setCurrentView('studio');
@@ -274,6 +299,9 @@ export function NullPinProvider({ children }) {
       if (cloudDrop && cloudDrop.status !== 'burned') {
         sound.unlockChime();
         const openedDrop = { ...cloudDrop, status: 'opened' };
+        const remaining = calculateRemainingSeconds(openedDrop);
+        setTimeLeft(remaining);
+        setIsTimerActive(true);
         setActiveDrop(openedDrop);
         setUnlockedDrop(openedDrop);
         setCurrentView('studio');
@@ -282,7 +310,7 @@ export function NullPinProvider({ children }) {
       }
     }
 
-    // 3. Default demo fallback: 7492
+    // 4. Default demo fallback: 7492
     if (searchPin === '7492') {
       sound.unlockChime();
       const demoBlob = createDemoLabReportPdfBlob();
@@ -314,7 +342,10 @@ export function NullPinProvider({ children }) {
         },
         status: 'opened',
         createdAt: Date.now(),
+        expiresAt: Date.now() + 300 * 1000,
       };
+      setTimeLeft(300);
+      setIsTimerActive(true);
       setUnlockedDrop(demo);
       setCurrentView('studio');
       setPinError(false);
