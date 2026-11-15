@@ -6,6 +6,7 @@ import {
   saveDropRecord, 
   getDropRecord, 
   markDropStatus, 
+  claimDropRecord,
   burnDropRecord 
 } from '../utils/crossTabSync';
 import {
@@ -262,8 +263,8 @@ export function NullPinProvider({ children }) {
   const unlockWithPin = useCallback(async (pin) => {
     const searchPin = String(pin).trim();
 
-    // 1. Check if matches active drop in this tab's memory
-    if (activeDrop && String(activeDrop.pin) === searchPin && activeDrop.status !== 'burned') {
+    // 1. Check if matches active drop in this tab's memory (Single-Claim: only allow if waiting)
+    if (activeDrop && String(activeDrop.pin) === searchPin && activeDrop.status === 'waiting') {
       sound.unlockChime();
       const updated = { ...activeDrop, status: 'opened' };
       const remaining = calculateRemainingSeconds(updated);
@@ -273,13 +274,16 @@ export function NullPinProvider({ children }) {
       setUnlockedDrop(updated);
       setCurrentView('studio');
       setPinError(false);
-      markDropStatus(searchPin, 'opened');
+      claimDropRecord(searchPin);
+      if (isSupabaseConfigured()) {
+        burnDropInSupabase(searchPin).catch(() => {});
+      }
       return true;
     }
 
-    // 2. Cross-Tab Lookup: Check if another localhost tab/window created this PIN
+    // 2. Cross-Tab Lookup: Check if another localhost tab/window created this PIN (Single-Claim: only allow if waiting)
     const crossTabDrop = await getDropRecord(searchPin);
-    if (crossTabDrop && crossTabDrop.status !== 'burned') {
+    if (crossTabDrop && crossTabDrop.status === 'waiting') {
       sound.unlockChime();
       const openedDrop = { ...crossTabDrop, status: 'opened' };
       const remaining = calculateRemainingSeconds(openedDrop);
@@ -289,14 +293,17 @@ export function NullPinProvider({ children }) {
       setUnlockedDrop(openedDrop);
       setCurrentView('studio');
       setPinError(false);
-      markDropStatus(searchPin, 'opened');
+      claimDropRecord(searchPin);
+      if (isSupabaseConfigured()) {
+        burnDropInSupabase(searchPin).catch(() => {});
+      }
       return true;
     }
 
     // 3. Supabase Cloud Lookup: Check live Supabase database & storage bucket
     if (isSupabaseConfigured()) {
       const cloudDrop = await fetchDropFromSupabase(searchPin);
-      if (cloudDrop && cloudDrop.status !== 'burned') {
+      if (cloudDrop && (cloudDrop.status === 'waiting' || cloudDrop.status === 'synced')) {
         sound.unlockChime();
         const openedDrop = { ...cloudDrop, status: 'opened' };
         const remaining = calculateRemainingSeconds(openedDrop);
@@ -306,6 +313,7 @@ export function NullPinProvider({ children }) {
         setUnlockedDrop(openedDrop);
         setCurrentView('studio');
         setPinError(false);
+        claimDropRecord(searchPin);
         return true;
       }
     }

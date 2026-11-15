@@ -414,8 +414,8 @@ export async function fetchDropFromSupabase(pin) {
       return null;
     }
 
-    // Check expiration or burned status (Strict 5-minute cutoff)
-    if (record.status === 'burned') {
+    // Check expiration or already claimed/burned status (Single-Claim Enforcement)
+    if (record.status === 'burned' || record.status === 'claimed' || record.status === 'opened') {
       return null;
     }
     if (record.expires_at && new Date(record.expires_at) < new Date()) {
@@ -438,7 +438,7 @@ export async function fetchDropFromSupabase(pin) {
       }
     }
 
-    if (!record || record.status === 'burned' || record.status === 'uploading') {
+    if (!record || record.status === 'burned' || record.status === 'claimed' || record.status === 'opened' || record.status === 'uploading') {
       return null;
     }
 
@@ -484,6 +484,16 @@ export async function fetchDropFromSupabase(pin) {
     const primaryFile = reconstructedFiles[0] || null;
     const primaryBlobUrl = primaryFile?.blobUrl || null;
 
+    // Single-Claim Enforcement: Immediately delete/consume the database row so no second tab or device can claim this PIN
+    try {
+      await supabase
+        .from(TABLE_NAME)
+        .delete()
+        .eq('pin', searchPin);
+    } catch (consumeErr) {
+      console.warn('[NullPin Supabase] Consume PIN error:', consumeErr);
+    }
+
     return {
       id: record.id,
       pin: record.pin,
@@ -520,10 +530,10 @@ export async function burnDropInSupabase(pin) {
   try {
     const searchPin = String(pin).trim();
 
-    // 1. Mark status as burned in database
+    // 1. Delete row from database (if not already consumed)
     await supabase
       .from(TABLE_NAME)
-      .update({ status: 'burned' })
+      .delete()
       .eq('pin', searchPin);
 
     // 2. List and remove all files in the storage bucket folder

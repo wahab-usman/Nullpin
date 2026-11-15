@@ -572,33 +572,28 @@ export async function printFromRam(dropData, onPrintComplete) {
 
   const handleVisibilityReturn = () => {
     if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
-      setTimeout(finishPrint, 300);
+      setTimeout(finishPrint, 250);
     }
   };
 
   // Listen for window returning to focus AFTER print dialog has genuinely closed
   const handleFocusReturn = () => {
     setTimeout(() => {
-      if (document.hasFocus()) {
-        finishPrint();
-      }
-    }, 400);
+      finishPrint();
+    }, 300);
   };
 
   const handleAfterPrint = () => {
     // afterprint fired - native print dialog was submitted, saved, or dismissed
-    if (document.hasFocus()) {
+    setTimeout(() => {
       finishPrint();
-    } else {
-      window.addEventListener('focus', handleFocusReturn, { once: true });
-      // Fallback if focus event is not emitted by OS
-      setTimeout(finishPrint, isMobile ? 1200 : 2500);
-    }
+    }, 200);
   };
 
   const attachAfterPrintListener = (targetFrame = activePrintFrame) => {
     try {
       if (targetFrame?.contentWindow) {
+        targetFrame.contentWindow.addEventListener('afterprint', handleAfterPrint, { once: true });
         targetFrame.contentWindow.onafterprint = handleAfterPrint;
       }
     } catch (err) {
@@ -607,10 +602,11 @@ export async function printFromRam(dropData, onPrintComplete) {
 
     if (typeof window !== 'undefined') {
       window.addEventListener('afterprint', handleAfterPrint, { once: true });
+      window.addEventListener('focus', handleFocusReturn, { once: true });
     }
 
     if (typeof document !== 'undefined') {
-      document.addEventListener('visibilitychange', handleVisibilityReturn);
+      document.addEventListener('visibilitychange', handleVisibilityReturn, { once: true });
     }
 
     // Mobile completion guard: mobile browsers often swallow afterprint or focus events
@@ -622,13 +618,13 @@ export async function printFromRam(dropData, onPrintComplete) {
     }
   };
 
-  // Global safety watchdog: ensures UI is NEVER stuck on Spooling...
+  // Global safety watchdog: ensures UI is not stuck permanently if OS swallows all events
   globalHardSafetyTimer = setTimeout(() => {
     if (!isCompleted) {
       console.warn('[NullPin RAM Print] Global safety timeout reached, releasing print lock.');
       finishPrint();
     }
-  }, 4500);
+  }, 60000);
 
   // Determine mode and color preference
   const mode = dropData.mode || 'doc';
@@ -662,7 +658,6 @@ export async function printFromRam(dropData, onPrintComplete) {
           prewarmed.iframe.contentWindow.focus();
           prewarmed.iframe.contentWindow.print();
         }
-        setTimeout(finishPrint, 350);
       } catch (err) {
         console.warn('[NullPin RAM Print] Prewarmed print trigger error, falling back:', err);
         fallbackHtmlPrint(prewarmed.iframe, dropData, isGrayscale, attachAfterPrintListener, finishPrint);
@@ -771,8 +766,6 @@ export async function printFromRam(dropData, onPrintComplete) {
             iframe.contentWindow.focus();
             iframe.contentWindow.print();
           }
-          // Immediately resolve the spooling lock once native print dialog is triggered
-          setTimeout(finishPrint, 400);
         } catch (err) {
           console.warn('[NullPin RAM Print] PDF direct print error, fallback to HTML sheet:', err);
           fallbackHtmlPrint(iframe, dropData, isGrayscale, attachAfterPrintListener, finishPrint);
@@ -1106,12 +1099,6 @@ function renderHtmlAndPrint(iframe, htmlContent, onAttachListener, onComplete) {
           iframe.contentWindow.focus();
           iframe.contentWindow.print();
         }
-        // Immediately release the spooling lock & notify UI that spooling succeeded
-        setTimeout(() => {
-          if (typeof onComplete === 'function') {
-            onComplete();
-          }
-        }, 400);
       } catch (e) {
         console.error('[NullPin RAM Print] Error calling contentWindow.print():', e);
         if (typeof onComplete === 'function') {

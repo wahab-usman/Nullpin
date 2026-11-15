@@ -131,9 +131,11 @@ export async function getDropRecord(pin) {
 
     if (!record) return null;
 
-    // Check expiration (5 minutes)
-    if (Date.now() > record.expiresAt || record.status === 'burned') {
-      burnDropRecord(searchPin);
+    // Check expiration (5 minutes) or already claimed/burned status (Single-Claim Enforcement)
+    if (Date.now() > record.expiresAt || record.status === 'burned' || record.status === 'claimed' || record.status === 'opened') {
+      if (Date.now() > record.expiresAt) {
+        burnDropRecord(searchPin);
+      }
       return null;
     }
 
@@ -238,6 +240,13 @@ export async function markDropStatus(pin, status) {
   } catch (err) {
     console.error('Failed to update drop status:', err);
   }
+}
+
+/**
+ * Immediately marks a drop as claimed so no other tab can unlock it (Single-Claim)
+ */
+export async function claimDropRecord(pin) {
+  return markDropStatus(pin, 'claimed');
 }
 
 /**

@@ -206,6 +206,17 @@ export default function PrintStudio() {
     startAutoBurnSequence(3000, `All ${filesList.length} files saved! Auto-purging RAM buffer in 3 seconds...`);
   }, [filesList, isVaporizing, startAutoBurnSequence]);
 
+  const handleVaporizeNow = useCallback(() => {
+    if (autoBurnTimer) clearTimeout(autoBurnTimer);
+    setIsAutoBurning(false);
+    setIsVaporizing(true);
+    sound.vaporize();
+    fireVaporizeSparks();
+    setTimeout(() => {
+      triggerVaporize();
+    }, 800);
+  }, [autoBurnTimer, triggerVaporize]);
+
   // Print individual file from manifest
   const handlePrintSingleFile = useCallback((fileObj) => {
     if (isPrinting || isAutoBurning || isVaporizing) return;
@@ -218,11 +229,11 @@ export default function PrintStudio() {
     setIsPrinting(true);
     sound.printBeep();
 
-    // Safety watchdog: ensures isPrinting is never stuck on Spooling...
+    // Safety watchdog: ensures isPrinting is not stuck permanently
     let watchdogTimer = setTimeout(() => {
       setPrintingFileId(null);
       setIsPrinting(false);
-    }, 5000);
+    }, 60000);
 
     printFromRam({
       ...drop,
@@ -233,9 +244,19 @@ export default function PrintStudio() {
       clearTimeout(watchdogTimer);
       setPrintingFileId(null);
       setIsPrinting(false);
-      setPrintedFileIds((prev) => new Set([...prev, fKey]));
+      setPrintedFileIds((prev) => {
+        const nextSet = new Set([...prev, fKey]);
+        const allDone = filesList.length > 0 && filesList.every((f) => nextSet.has(f.id || f.name));
+        if (allDone || !isMultiFile) {
+          // Auto-Burn drop & redirect to Home Page immediately after print dialog finishes
+          setTimeout(() => {
+            handleVaporizeNow();
+          }, 350);
+        }
+        return nextSet;
+      });
     });
-  }, [drop, handleSaveArchive, filesList, isPrinting, isAutoBurning, isVaporizing]);
+  }, [drop, handleSaveArchive, filesList, isMultiFile, handleVaporizeNow, isPrinting, isAutoBurning, isVaporizing]);
 
   // Primary action button handler:
   // Handles single files, archives, and sequential queue execution for multi-file batches
@@ -259,10 +280,10 @@ export default function PrintStudio() {
       const target = drop?.file || filesList[0];
       const fKey = target?.id || target?.name || 'primary';
 
-      // Safety watchdog: ensures isPrinting is never stuck on Spooling...
+      // Safety watchdog: ensures isPrinting is not stuck permanently
       let watchdogTimer = setTimeout(() => {
         setIsPrinting(false);
-      }, 5000);
+      }, 60000);
 
       printFromRam({
         ...drop,
@@ -273,6 +294,10 @@ export default function PrintStudio() {
         clearTimeout(watchdogTimer);
         setIsPrinting(false);
         setPrintedFileIds((prev) => new Set([...prev, fKey]));
+        // Auto-Burn drop & redirect to Home Page immediately after print dialog finishes
+        setTimeout(() => {
+          handleVaporizeNow();
+        }, 350);
       });
       return;
     }
@@ -282,18 +307,7 @@ export default function PrintStudio() {
     const target = nextTargetFile;
     if (!target) return;
     handlePrintSingleFile(target);
-  }, [drop, isSingleZip, allAreZip, isMultiFile, filesList, nextTargetFile, handlePrintSingleFile, handleSaveArchive, isPrinting, isAutoBurning, isVaporizing]);
-
-  const handleVaporizeNow = useCallback(() => {
-    if (autoBurnTimer) clearTimeout(autoBurnTimer);
-    setIsAutoBurning(false);
-    setIsVaporizing(true);
-    sound.vaporize();
-    fireVaporizeSparks();
-    setTimeout(() => {
-      triggerVaporize();
-    }, 800);
-  }, [autoBurnTimer, triggerVaporize]);
+  }, [drop, isSingleZip, allAreZip, isMultiFile, filesList, nextTargetFile, handlePrintSingleFile, handleSaveArchive, handleVaporizeNow, isPrinting, isAutoBurning, isVaporizing]);
 
   // Block Ctrl+S / Cmd+S on desktop to enforce strict Zero-Download policy
   useEffect(() => {
