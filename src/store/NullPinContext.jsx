@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { sound } from '../utils/sound';
-import { createDemoLabReportPdfBlob } from '../utils/ramPrinter';
+import { createDemoLabReportPdfBlob, cleanupPrewarmedFrames } from '../utils/ramPrinter';
 import { DEMO_PRESETS } from '../utils/demoPresets';
 import { 
   saveDropRecord, 
@@ -333,6 +333,7 @@ export function NullPinProvider({ children }) {
 
   // Trigger vaporize / burn animation & reset
   const triggerVaporize = useCallback((fromRemote = false) => {
+    cleanupPrewarmedFrames();
     if (!fromRemote) {
       sound.vaporize();
     }

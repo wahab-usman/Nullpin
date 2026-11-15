@@ -209,9 +209,267 @@ export async function ensureSameOriginBlobUrl(url, mimeType = 'application/pdf')
   }
 }
 
+// =========================================================================
+// PRE-WARMED PRINT IFRAME POOL FOR ZERO-LATENCY CHROMIUM PREVIEWS
+// Pre-mounts iframes in DOM on PIN unlock so Chrome PDFium parses 30+ pages
+// BEFORE the user clicks 'Print'.
+// =========================================================================
+
+// Registry of pre-warmed iframe instances: Map<fileKey, { iframe, isLoaded, blobUrl, type }>
+const prewarmedFrames = new Map();
+
 /**
- * Eagerly pre-fetches and caches all files in a drop into same-origin Blobs and Object URLs.
- * Runs in the background as soon as PrintStudio opens so clicking 'Print' is instant with zero network wait.
+ * Destroys all pre-warmed iframes from the DOM and clears the cache
+ */
+export function cleanupPrewarmedFrames() {
+  for (const [, record] of prewarmedFrames.entries()) {
+    try {
+      if (record?.iframe && record.iframe.parentNode) {
+        record.iframe.parentNode.removeChild(record.iframe);
+      }
+    } catch (e) {}
+  }
+  prewarmedFrames.clear();
+}
+
+export function getIdCardHtml(frontUrl, backUrl, isGrayscale, copies = 1) {
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <title>NullPin ID Card A4 Printout</title>
+      <style>
+        @page { size: A4 portrait; margin: 12mm; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+          background: #ffffff; color: #000000; width: 100%;
+          display: flex; flex-direction: column; align-items: center;
+        }
+        .filter-grayscale { filter: grayscale(100%) contrast(1.05); }
+        @media print {
+          body.filter-grayscale, .filter-grayscale {
+            filter: grayscale(100%) contrast(1.05) !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+        }
+        .header-meta {
+          width: 100%; max-width: 180mm; display: flex; justify-content: space-between;
+          font-family: monospace; font-size: 8pt; color: #666;
+          padding-bottom: 4mm; margin-bottom: 12mm; border-bottom: 0.5px solid #ccc;
+        }
+        .card-container { width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .card-slot { width: 85.6mm; height: 54mm; border-radius: 6px; overflow: hidden; border: 1px solid #d1d5db; background: #fafafa; margin-bottom: 15mm; }
+        .card-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .cut-divider { width: 100mm; border-top: 1px dashed #9ca3af; margin-bottom: 15mm; position: relative; text-align: center; }
+        .cut-label { position: absolute; top: -7px; left: 50%; transform: translateX(-50%); background: white; padding: 0 6px; font-size: 7.5pt; font-family: monospace; color: #6b7280; text-transform: uppercase; }
+        .footer-meta { margin-top: 15mm; font-size: 7.5pt; font-family: monospace; color: #9ca3af; text-align: center; }
+      </style>
+    </head>
+    <body class="${isGrayscale ? 'filter-grayscale' : ''}">
+      <div class="header-meta">
+        <span>NULLPIN ID CARD MERGER • STANDARD A4</span>
+        <span>MODE: ${isGrayscale ? 'BLACK & WHITE' : 'COLOR'}</span>
+        <span>COPIES: ${copies}</span>
+      </div>
+      <div class="card-container">
+        <div class="card-slot"><img src="${frontUrl}" alt="Front ID" class="card-img" /></div>
+        <div class="cut-divider"><span class="cut-label">Center A4 Alignment Cut Line</span></div>
+        <div class="card-slot"><img src="${backUrl}" alt="Back ID" class="card-img" /></div>
+      </div>
+      <div class="footer-meta">
+        Printed direct from Browser RAM • Zero Disk Traces • ISO/IEC 7810 ID-1 standard (85.6 × 54 mm)
+      </div>
+    </body>
+    </html>
+  `;
+}
+
+export function getImageHtml(rawFileName, blobUrl, isGrayscale) {
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <title>${escapeHtml(rawFileName)}</title>
+      <style>
+        @page { size: A4 portrait; margin: 15mm; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+          background: #ffffff; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+        .filter-grayscale { filter: grayscale(100%); }
+        @media print {
+          body.filter-grayscale, .filter-grayscale {
+            filter: grayscale(100%) !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+        }
+        .header {
+          width: 100%; display: flex; justify-content: space-between;
+          font-family: monospace; font-size: 8.5pt; color: #64748b;
+          padding-bottom: 4mm; margin-bottom: 8mm; border-bottom: 1px solid #e2e8f0;
+        }
+        .img-box {
+          width: 100%; display: flex; justify-content: center; align-items: center;
+          max-height: 240mm;
+        }
+        img {
+          max-width: 100%; max-height: 235mm; object-fit: contain; display: block; border-radius: 4px;
+        }
+        .footer {
+          margin-top: 8mm; font-family: monospace; font-size: 7.5pt; color: #94a3b8; text-align: center;
+        }
+      </style>
+    </head>
+    <body class="${isGrayscale ? 'filter-grayscale' : ''}">
+      <div class="header">
+        <span>NULLPIN ZERO-TRACE PHOTO STREAM</span>
+        <span>${escapeHtml(rawFileName)}</span>
+      </div>
+      <div class="img-box">
+        <img src="${blobUrl}" alt="${escapeHtml(rawFileName)}" />
+      </div>
+      <div class="footer">
+        Volatile RAM Buffer • Zero Disk Traces • Standard A4 Printout
+      </div>
+    </body>
+    </html>
+  `;
+}
+
+async function prewarmFileIframe(fileObj, dropData) {
+  if (typeof document === 'undefined' || isMobile) return null;
+  const fileKey = fileObj.id || fileObj.name || 'primary';
+  const rawFileName = fileObj.name || dropData.file?.name || '';
+  const fileName = rawFileName.toLowerCase();
+  const fileType = (fileObj.type || dropData.file?.type || '').toLowerCase();
+
+  const isPdf = (fileType === 'application/pdf' || fileName.endsWith('.pdf')) &&
+                !fileName.endsWith('.docx') && !fileName.endsWith('.doc');
+  const isImage = fileType.startsWith('image/') || /\.(png|jpe?g|webp|svg|gif|bmp)$/i.test(fileName);
+  const colorPref = dropData.prefs?.colorMode || dropData.printPrefs?.color || 'bw';
+  const isGrayscale = colorPref === 'bw';
+
+  const existing = prewarmedFrames.get(fileKey);
+  if (existing && existing.iframe && document.body.contains(existing.iframe) && existing.isLoaded) {
+    return existing;
+  }
+
+  let cleanUrl = fileObj.blobUrl;
+  if (!cleanUrl && fileObj.rawFile instanceof Blob) {
+    cleanUrl = URL.createObjectURL(fileObj.rawFile);
+    fileObj.blobUrl = cleanUrl;
+  }
+  if (cleanUrl) {
+    const mime = fileObj.type || (isPdf ? 'application/pdf' : isImage ? 'image/png' : 'application/octet-stream');
+    cleanUrl = await ensureSameOriginBlobUrl(cleanUrl, mime);
+    fileObj.blobUrl = cleanUrl;
+  }
+
+  const frameId = `nullpin-prewarm-${String(fileKey).replace(/[^a-zA-Z0-9_-]/g, '_')}`;
+  let iframe = document.getElementById(frameId);
+  if (!iframe) {
+    iframe = document.createElement('iframe');
+    iframe.id = frameId;
+    iframe.style.cssText =
+      'position: fixed; right: 0; bottom: 0; width: 800px; height: 600px; opacity: 0.01; pointer-events: none; border: 0; z-index: -1;';
+    document.body.appendChild(iframe);
+  }
+
+  const record = { iframe, isLoaded: false, blobUrl: cleanUrl, type: isPdf ? 'pdf' : isImage ? 'image' : 'html' };
+  prewarmedFrames.set(fileKey, record);
+
+  if (isPdf && cleanUrl) {
+    const pdfUrl = cleanUrl.split('#')[0];
+    iframe.src = pdfUrl;
+    iframe.onload = () => {
+      record.isLoaded = true;
+    };
+    iframe.onerror = () => {
+      record.isLoaded = false;
+    };
+    // Chrome PDFium plugin parses multi-page PDFs in background
+    setTimeout(() => { record.isLoaded = true; }, 1000);
+    return record;
+  }
+
+  if (isImage && cleanUrl) {
+    const html = getImageHtml(rawFileName, cleanUrl, isGrayscale);
+    const doc = iframe.contentDocument || iframe.contentWindow.document;
+    doc.open();
+    doc.write(html);
+    doc.close();
+
+    const imgs = Array.from(doc.querySelectorAll('img'));
+    if (imgs.length > 0) {
+      Promise.all(
+        imgs.map((img) => (typeof img.decode === 'function' ? img.decode().catch(() => {}) : Promise.resolve()))
+      ).then(() => {
+        record.isLoaded = true;
+      });
+    } else {
+      record.isLoaded = true;
+    }
+    return record;
+  }
+
+  return record;
+}
+
+async function prewarmIdCardIframe(dropData) {
+  if (typeof document === 'undefined' || isMobile) return null;
+  const fileKey = 'idcard';
+  const existing = prewarmedFrames.get(fileKey);
+  if (existing && existing.iframe && document.body.contains(existing.iframe) && existing.isLoaded) {
+    return existing;
+  }
+
+  let frontUrl = dropData.frontBlobUrl || dropData.frontPreview;
+  let backUrl = dropData.backBlobUrl || dropData.backPreview || frontUrl;
+
+  if (frontUrl) frontUrl = await ensureSameOriginBlobUrl(frontUrl, 'image/jpeg');
+  if (backUrl) backUrl = await ensureSameOriginBlobUrl(backUrl, 'image/jpeg');
+
+  const frameId = 'nullpin-prewarm-idcard';
+  let iframe = document.getElementById(frameId);
+  if (!iframe) {
+    iframe = document.createElement('iframe');
+    iframe.id = frameId;
+    iframe.style.cssText =
+      'position: fixed; right: 0; bottom: 0; width: 800px; height: 600px; opacity: 0.01; pointer-events: none; border: 0; z-index: -1;';
+    document.body.appendChild(iframe);
+  }
+
+  const isGrayscale = (dropData.prefs?.colorMode || dropData.printPrefs?.color || 'bw') === 'bw';
+  const html = getIdCardHtml(frontUrl, backUrl, isGrayscale, dropData.prefs?.copies || 1);
+  const doc = iframe.contentDocument || iframe.contentWindow.document;
+  doc.open();
+  doc.write(html);
+  doc.close();
+
+  const record = { iframe, isLoaded: false, type: 'idcard' };
+  prewarmedFrames.set(fileKey, record);
+
+  const imgs = Array.from(doc.querySelectorAll('img'));
+  if (imgs.length > 0) {
+    Promise.all(
+      imgs.map((img) => (typeof img.decode === 'function' ? img.decode().catch(() => {}) : Promise.resolve()))
+    ).then(() => {
+      record.isLoaded = true;
+    });
+  } else {
+    record.isLoaded = true;
+  }
+  return record;
+}
+
+/**
+ * Eagerly pre-fetches and caches all files in a drop into same-origin Blobs and Object URLs,
+ * and pre-mounts & pre-renders iframes in DOM so clicking 'Print' previews instantly in 0ms.
  */
 export async function preloadDropBlobs(drop) {
   if (!drop) return;
@@ -244,6 +502,18 @@ export async function preloadDropBlobs(drop) {
   }
 
   await Promise.allSettled(tasks);
+
+  // Pre-mount & pre-render iframes on Desktop in background while user views PIN unlock screen
+  if (!isMobile) {
+    if (drop.mode === 'idcard') {
+      await prewarmIdCardIframe(drop);
+    } else {
+      const prewarmTargets = list.slice(0, 6);
+      for (const f of prewarmTargets) {
+        await prewarmFileIframe(f, drop);
+      }
+    }
+  }
 }
 
 /**
@@ -264,29 +534,11 @@ export async function printFromRam(dropData, onPrintComplete) {
   }
   isGlobalPrintLocked = true;
 
-  // 1. Remove any previous print frame if present
-  const existingFrame = document.getElementById('nullpin-ram-print-frame');
-  if (existingFrame) {
-    try {
-      existingFrame.remove();
-    } catch (e) {
-      console.warn('[NullPin RAM Print] Error removing old frame:', e);
-    }
-  }
-
-  // 2. Create dedicated isolated iframe
-  const iframe = document.createElement('iframe');
-  iframe.id = 'nullpin-ram-print-frame';
-
-  // CRITICAL CSS RULE: Position inside active viewport bounds so Chromium compositor
-  // and PDFium plugin prioritize rendering without off-screen throttling.
-  iframe.style.cssText =
-    'position: fixed; right: 0; bottom: 0; width: 800px; height: 600px; opacity: 0.01; pointer-events: none; border: 0; z-index: -1;';
-
   // State to prevent duplicate onPrintComplete triggers
   let isCompleted = false;
   let mobileFallbackTimer = null;
   let globalHardSafetyTimer = null;
+  let activePrintFrame = null;
 
   const finishPrint = () => {
     if (isCompleted) return;
@@ -307,8 +559,8 @@ export async function printFromRam(dropData, onPrintComplete) {
       window.removeEventListener('afterprint', handleAfterPrint);
       window.removeEventListener('focus', handleFocusReturn);
       document.removeEventListener('visibilitychange', handleVisibilityReturn);
-      if (iframe.contentWindow) {
-        iframe.contentWindow.onafterprint = null;
+      if (activePrintFrame?.contentWindow) {
+        activePrintFrame.contentWindow.onafterprint = null;
       }
     } catch (e) {}
 
@@ -344,10 +596,10 @@ export async function printFromRam(dropData, onPrintComplete) {
     }
   };
 
-  const attachAfterPrintListener = () => {
+  const attachAfterPrintListener = (targetFrame = activePrintFrame) => {
     try {
-      if (iframe.contentWindow) {
-        iframe.contentWindow.onafterprint = handleAfterPrint;
+      if (targetFrame?.contentWindow) {
+        targetFrame.contentWindow.onafterprint = handleAfterPrint;
       }
     } catch (err) {
       console.warn('[NullPin RAM Print] Could not attach onafterprint to iframe:', err);
@@ -394,6 +646,56 @@ export async function printFromRam(dropData, onPrintComplete) {
   const isDoc = fileName.endsWith('.doc') || fileType.includes('msword');
   const isImage = fileType.startsWith('image/') || /\.(png|jpe?g|webp|svg|gif|bmp)$/i.test(fileName);
   const isText = fileType.startsWith('text/') || /\.(txt|csv|json|md|log|js|html|py)$/i.test(fileName);
+
+  // FAST ZERO-LATENCY PATH: Check if a pre-warmed iframe is already mounted in DOM
+  const fileKey = dropData.file?.id || dropData.file?.name || (dropData.mode === 'idcard' ? 'idcard' : 'primary');
+  const prewarmed = prewarmedFrames.get(fileKey);
+
+  if (!isMobile && prewarmed && prewarmed.iframe && document.body.contains(prewarmed.iframe)) {
+    console.log(`[NullPin RAM Print] Pre-warmed iframe ready for '${fileKey}' — 0ms synchronous print dispatch!`);
+    activePrintFrame = prewarmed.iframe;
+    attachAfterPrintListener(prewarmed.iframe);
+
+    const triggerPrewarmed = () => {
+      try {
+        if (prewarmed.iframe.contentWindow) {
+          prewarmed.iframe.contentWindow.focus();
+          prewarmed.iframe.contentWindow.print();
+        }
+        setTimeout(finishPrint, 350);
+      } catch (err) {
+        console.warn('[NullPin RAM Print] Prewarmed print trigger error, falling back:', err);
+        fallbackHtmlPrint(prewarmed.iframe, dropData, isGrayscale, attachAfterPrintListener, finishPrint);
+      }
+    };
+
+    if (prewarmed.isLoaded) {
+      triggerPrewarmed();
+    } else {
+      setTimeout(triggerPrewarmed, 200);
+    }
+    return;
+  }
+
+  // 1. Remove any previous print frame if present
+  const existingFrame = document.getElementById('nullpin-ram-print-frame');
+  if (existingFrame) {
+    try {
+      existingFrame.remove();
+    } catch (e) {
+      console.warn('[NullPin RAM Print] Error removing old frame:', e);
+    }
+  }
+
+  // 2. Create dedicated isolated iframe for on-demand printing
+  const iframe = document.createElement('iframe');
+  iframe.id = 'nullpin-ram-print-frame';
+  activePrintFrame = iframe;
+
+  // Position inside active viewport bounds so Chromium compositor
+  // and PDFium plugin prioritize rendering without off-screen throttling.
+  iframe.style.cssText =
+    'position: fixed; right: 0; bottom: 0; width: 800px; height: 600px; opacity: 0.01; pointer-events: none; border: 0; z-index: -1;';
 
   // Extract and ensure clean same-origin Blob URL in RAM
   let targetBlobUrl = dropData.blobUrl || dropData.file?.blobUrl || null;
