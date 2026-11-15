@@ -21,7 +21,7 @@ export default function SpatialStage() {
       {/* Centered Segmented Switcher (Visible in portal mode) */}
       <AnimatePresence>
         {isPortalMode && (
-          <div className="flex justify-center w-full px-1">
+          <div className="flex justify-center w-full px-1 shrink-0">
             <div className="relative inline-flex p-0.5 sm:p-1 rounded-full bg-slate-200/70 dark:bg-zinc-900/80 backdrop-blur-md border border-slate-300/60 dark:border-white/[0.08] shadow-xs">
               {/* Send Drop Tab (FIRST) */}
               <button

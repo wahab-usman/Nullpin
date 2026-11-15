@@ -42,8 +42,8 @@ function AtmosphericCanvas() {
         <DynamicIsland />
       </div>
 
-      {/* Main Content Stage (Vertically centered between Header and Footer) */}
-      <main className="relative z-10 w-full max-w-[500px] mx-auto flex-1 flex flex-col items-center justify-center my-auto py-2 sm:py-3">
+      {/* Main Content Stage (Fixed top anchor - stops switcher and card from jumping) */}
+      <main className="relative z-10 w-full max-w-[500px] mx-auto flex-1 flex flex-col items-center justify-start pt-6 sm:pt-10 pb-4">
         <SpatialStage />
       </main>
 

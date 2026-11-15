@@ -80,6 +80,16 @@ export default function KineticPinKeypad() {
         autoFocus
       />
 
+      {/* ================= CONSISTENT SUB-ROW LAYOUT SLOT ================= */}
+      <div className="flex justify-center mb-2 sm:mb-3 w-full px-1">
+        <div className="relative inline-flex p-0.5 sm:p-1 rounded-full bg-slate-200/70 dark:bg-zinc-900/80 backdrop-blur-md border border-slate-300/60 dark:border-white/[0.08] shadow-xs">
+          <div className="flex items-center gap-1.5 px-3.5 sm:px-4 py-1 text-xs font-semibold text-slate-700 dark:text-zinc-300">
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+            <span>Terminal Direct Pipe</span>
+          </div>
+        </div>
+      </div>
+
       {/* Compact Main Card */}
       <motion.div
         initial={{ opacity: 0, y: 16 }}

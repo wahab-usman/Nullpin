@@ -1,8 +1,8 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Sun, Moon, Volume2, VolumeX, Clock, Copy, Check, 
-  Download, Smartphone, Monitor, ChevronDown, Shield
+  Download
 } from 'lucide-react';
 import { useTheme } from '../store/ThemeContext';
 import { useNullPin, useNullPinTimer } from '../store/NullPinContext';
@@ -29,9 +29,6 @@ export default function DynamicIsland() {
   const { activeDrop, soundEnabled, toggleSound, currentView, setCurrentView } = useNullPin();
   const { timeLeft } = useNullPinTimer();
   const [copied, setCopied] = useState(false);
-  const [showDownloadMenu, setShowDownloadMenu] = useState(false);
-  const [toastMessage, setToastMessage] = useState('');
-  const toastTimeoutRef = useRef(null);
 
   // Detect if running inside installed Windows Electron .EXE, native Android Capacitor app, or standalone PWA
   const isStandaloneApp =
@@ -59,16 +56,19 @@ export default function DynamicIsland() {
     }
   };
 
-  const handleDownloadClick = (type) => {
+  // 1-Click Instant Download Handler (Mobile -> APK, Desktop -> EXE)
+  const handleDownload = () => {
     sound.toggleSnap();
-    setShowDownloadMenu(false);
 
-    if (type === 'android') {
+    const isMobile =
+      typeof window !== 'undefined' &&
+      (/Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(window.navigator.userAgent) ||
+        window.innerWidth < 768);
+
+    if (isMobile) {
+      // 1-tap direct same-origin download of /NullPin.apk
       const link = APP_DOWNLOAD_LINKS.androidApk || '/NullPin.apk';
-      setToastMessage('Downloading NullPin APK for Android...');
-
       try {
-        // Trigger same-origin direct download with hidden anchor
         const a = document.createElement('a');
         a.style.display = 'none';
         a.href = link;
@@ -79,42 +79,15 @@ export default function DynamicIsland() {
           if (document.body.contains(a)) document.body.removeChild(a);
         }, 150);
       } catch {
-        window.location.href = link;
+        window.location.assign(link);
       }
-    } else if (type === 'windows') {
-      const link = APP_DOWNLOAD_LINKS.windowsExe;
-      setToastMessage('Downloading NullPin Setup for Windows...');
-
-      if (link && link.trim() !== '') {
-        try {
-          // Direct download via hidden iframe to prevent navigating away or redirecting page
-          const iframe = document.createElement('iframe');
-          iframe.style.display = 'none';
-          iframe.src = link;
-          document.body.appendChild(iframe);
-          setTimeout(() => {
-            if (document.body.contains(iframe)) document.body.removeChild(iframe);
-          }, 10000);
-        } catch {
-          const a = document.createElement('a');
-          a.style.display = 'none';
-          a.href = link;
-          a.download = 'NullPin-Setup.exe';
-          a.target = '_blank';
-          a.rel = 'noopener noreferrer';
-          document.body.appendChild(a);
-          a.click();
-          setTimeout(() => {
-            if (document.body.contains(a)) document.body.removeChild(a);
-          }, 200);
-        }
-      }
+    } else {
+      // 1-click instant direct download of Windows .exe
+      const exeLink =
+        APP_DOWNLOAD_LINKS.windowsExe ||
+        'https://github.com/wahab-usman/Nullpin/releases/download/v1.0.0/NullPin-Setup.exe';
+      window.location.assign(exeLink);
     }
-
-    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
-    toastTimeoutRef.current = setTimeout(() => {
-      setToastMessage('');
-    }, 3500);
   };
 
   return (
@@ -182,131 +155,19 @@ export default function DynamicIsland() {
 
         {/* ================= 3. RIGHT CONTROLS ================= */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 whitespace-nowrap">
-          {/* Download dropdown button (Hidden inside installed native .EXE and .APK) */}
+          {/* Download 1-Click Button (Hidden inside installed native .EXE and .APK) */}
           {!isStandaloneApp && (
             <>
-              <div 
-                className="relative shrink-0 whitespace-nowrap"
-                onMouseEnter={() => setShowDownloadMenu(true)}
-                onMouseLeave={() => setShowDownloadMenu(false)}
+              <button
+                type="button"
+                onClick={handleDownload}
+                className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-medium whitespace-nowrap px-2.5 py-1.5 rounded-full text-slate-700 dark:text-zinc-300 hover:bg-emerald-500/10 hover:text-emerald-600 dark:hover:text-emerald-400 transition-all duration-200 cursor-pointer shrink-0"
+                aria-label="Download native app"
+                title="Download NullPin App"
               >
-                <button
-                  type="button"
-                  onClick={() => setShowDownloadMenu((prev) => !prev)}
-                  className={`inline-flex items-center gap-1.5 text-xs sm:text-sm font-medium whitespace-nowrap px-2.5 py-1.5 rounded-full transition-all duration-200 cursor-pointer shrink-0 ${
-                    showDownloadMenu
-                      ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                      : 'text-slate-700 dark:text-zinc-300 hover:bg-emerald-500/10 hover:text-emerald-600 dark:hover:text-emerald-400'
-                  }`}
-                  aria-label="Download native app"
-                >
                 <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-500 shrink-0" />
                 <span className="font-semibold">Download</span>
-                <ChevronDown 
-                  className={`w-3.5 h-3.5 sm:w-4 sm:h-4 transition-transform duration-300 ${
-                    showDownloadMenu ? 'rotate-180 text-emerald-500' : 'text-slate-400 dark:text-zinc-500'
-                  }`} 
-                />
               </button>
-
-              {/* Floating Frosted-Glass Dropdown Panel */}
-              <AnimatePresence>
-                {showDownloadMenu && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 8, scale: 0.96 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 8, scale: 0.96 }}
-                    transition={{ duration: 0.18, ease: 'easeOut' }}
-                    className="absolute top-full mt-3 right-0 sm:right-auto sm:left-1/2 sm:-translate-x-1/2 
-                               w-[calc(100vw-2rem)] max-w-[280px] sm:w-72 rounded-3xl p-3 z-50
-                               bg-white/90 dark:bg-zinc-900/90 backdrop-blur-2xl backdrop-saturate-150
-                               border border-slate-200/90 dark:border-white/15 
-                               shadow-[0_20px_50px_rgba(0,0,0,0.15)] dark:shadow-[0_25px_60px_rgba(0,0,0,0.7)]"
-                  >
-                    {/* Header */}
-                    <div className="flex items-center justify-between px-2.5 py-1 mb-2 border-b border-slate-100 dark:border-zinc-800">
-                      <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">
-                        Native Apps
-                      </span>
-                      <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-mono text-[10px] font-bold">
-                        {APP_DOWNLOAD_LINKS.version}
-                      </span>
-                    </div>
-
-                    {/* Option 1: Android APK */}
-                    <button
-                      type="button"
-                      onClick={() => handleDownloadClick('android')}
-                      className="w-full flex items-center justify-between p-2.5 rounded-2xl text-left 
-                                 hover:bg-slate-100/90 dark:hover:bg-zinc-800/90 transition-colors group cursor-pointer mb-1"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/15 flex items-center justify-center text-emerald-600 dark:text-emerald-400 flex-shrink-0">
-                          <Smartphone className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <p className="text-xs font-bold text-slate-900 dark:text-zinc-100 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
-                            Android (.APK)
-                          </p>
-                          <p className="text-[10px] text-slate-500 dark:text-zinc-400">
-                            Fast mobile file & ID card drops
-                          </p>
-                        </div>
-                      </div>
-                      {APP_DOWNLOAD_LINKS.androidApk ? (
-                        <Download className="w-4 h-4 text-slate-400 group-hover:text-emerald-500" />
-                      ) : (
-                        <span className="text-[9px] font-mono text-slate-400 dark:text-zinc-500 bg-slate-100 dark:bg-zinc-800 px-2 py-0.5 rounded">
-                          Coming Soon
-                        </span>
-                      )}
-                    </button>
-
-                    {/* Option 2: Windows EXE */}
-                    <button
-                      type="button"
-                      onClick={() => handleDownloadClick('windows')}
-                      className="w-full flex items-center justify-between p-2.5 rounded-2xl text-left 
-                                 hover:bg-slate-100/90 dark:hover:bg-zinc-800/90 transition-colors group cursor-pointer"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-cyan-500/10 dark:bg-cyan-500/15 flex items-center justify-center text-cyan-600 dark:text-cyan-400 flex-shrink-0">
-                          <Monitor className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <p className="text-xs font-bold text-slate-900 dark:text-zinc-100 group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors">
-                            Windows (.EXE)
-                          </p>
-                          <p className="text-[10px] text-slate-500 dark:text-zinc-400">
-                            Dedicated print shop PC terminal
-                          </p>
-                        </div>
-                      </div>
-                      {APP_DOWNLOAD_LINKS.windowsExe ? (
-                        <Download className="w-4 h-4 text-slate-400 group-hover:text-cyan-500" />
-                      ) : (
-                        <span className="text-[9px] font-mono text-slate-400 dark:text-zinc-500 bg-slate-100 dark:bg-zinc-800 px-2 py-0.5 rounded">
-                          Coming Soon
-                        </span>
-                      )}
-                    </button>
-
-                    {/* Inline Toast Notice */}
-                    {toastMessage && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 2 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="mt-2 px-2.5 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-center"
-                      >
-                        <span className="text-[10px] font-mono font-semibold text-emerald-600 dark:text-emerald-400">
-                          {toastMessage}
-                        </span>
-                      </motion.div>
-                    )}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-              </div>
 
               <div className="w-[1px] h-4 bg-slate-300 dark:bg-zinc-800 shrink-0" />
             </>
@@ -352,25 +213,6 @@ export default function DynamicIsland() {
           </button>
         </div>
       </div>
-
-      {/* ================= SLEEK FLOATING TOAST NOTIFICATION ================= */}
-      <AnimatePresence>
-        {toastMessage && (
-          <motion.div
-            initial={{ opacity: 0, y: -10, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -10, scale: 0.95 }}
-            transition={{ duration: 0.22, ease: 'easeOut' }}
-            className="fixed top-[calc(max(env(safe-area-inset-top,0px),2.75rem)+3.5rem)] sm:top-20 left-1/2 -translate-x-1/2 z-50 pointer-events-none flex items-center gap-2.5 px-4 py-2 rounded-full bg-zinc-950/90 dark:bg-zinc-900/95 text-white border border-emerald-500/40 shadow-[0_12px_36px_rgba(0,0,0,0.5),0_0_20px_rgba(16,185,129,0.25)] backdrop-blur-xl font-mono text-xs font-semibold select-none whitespace-nowrap"
-          >
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-            </span>
-            <span>{toastMessage}</span>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </header>
   );
 }
