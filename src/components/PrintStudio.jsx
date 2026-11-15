@@ -34,6 +34,7 @@ export default function PrintStudio() {
   const [isVaporizing, setIsVaporizing] = useState(false);
   const [isAutoBurning, setIsAutoBurning] = useState(false);
   const [autoBurnTimer, setAutoBurnTimer] = useState(null);
+  const [postPrintCountdown, setPostPrintCountdown] = useState(null);
   const [isPrinting, setIsPrinting] = useState(false);
   const [printingFileId, setPrintingFileId] = useState(null);
   const [printedFileIds, setPrintedFileIds] = useState(new Set());
@@ -208,6 +209,7 @@ export default function PrintStudio() {
 
   const handleVaporizeNow = useCallback(() => {
     if (autoBurnTimer) clearTimeout(autoBurnTimer);
+    setPostPrintCountdown(null);
     setIsAutoBurning(false);
     setIsVaporizing(true);
     sound.vaporize();
@@ -217,9 +219,26 @@ export default function PrintStudio() {
     }, 800);
   }, [autoBurnTimer, triggerVaporize]);
 
+  // 5-Second countdown timer after print completion before automatic vaporize & home redirect
+  useEffect(() => {
+    if (postPrintCountdown === null) return;
+    if (postPrintCountdown <= 0) {
+      handleVaporizeNow();
+      return;
+    }
+    const timer = setTimeout(() => {
+      setPostPrintCountdown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [postPrintCountdown, handleVaporizeNow]);
+
   // Print individual file from manifest
   const handlePrintSingleFile = useCallback((fileObj) => {
     if (isPrinting || isAutoBurning || isVaporizing) return;
+    if (postPrintCountdown !== null && postPrintCountdown > 0) {
+      handleVaporizeNow();
+      return;
+    }
     if (isZipFile(fileObj)) {
       handleSaveArchive(fileObj);
       return;
@@ -248,20 +267,22 @@ export default function PrintStudio() {
         const nextSet = new Set([...prev, fKey]);
         const allDone = filesList.length > 0 && filesList.every((f) => nextSet.has(f.id || f.name));
         if (allDone || !isMultiFile) {
-          // Auto-Burn drop & redirect to Home Page immediately after print dialog finishes
-          setTimeout(() => {
-            handleVaporizeNow();
-          }, 350);
+          // Start 5-second countdown before auto-burn and redirecting home
+          setPostPrintCountdown(5);
         }
         return nextSet;
       });
     });
-  }, [drop, handleSaveArchive, filesList, isMultiFile, handleVaporizeNow, isPrinting, isAutoBurning, isVaporizing]);
+  }, [drop, handleSaveArchive, filesList, isMultiFile, handleVaporizeNow, postPrintCountdown, isPrinting, isAutoBurning, isVaporizing]);
 
   // Primary action button handler:
   // Handles single files, archives, and sequential queue execution for multi-file batches
   const handlePrint = useCallback(() => {
     if (isPrinting || isAutoBurning || isVaporizing) return;
+    if (postPrintCountdown !== null && postPrintCountdown > 0) {
+      handleVaporizeNow();
+      return;
+    }
 
     if (isSingleZip) {
       handleSaveArchive(drop.file || filesList[0]);
@@ -294,10 +315,8 @@ export default function PrintStudio() {
         clearTimeout(watchdogTimer);
         setIsPrinting(false);
         setPrintedFileIds((prev) => new Set([...prev, fKey]));
-        // Auto-Burn drop & redirect to Home Page immediately after print dialog finishes
-        setTimeout(() => {
-          handleVaporizeNow();
-        }, 350);
+        // Start 5-second countdown before auto-burn and redirecting home
+        setPostPrintCountdown(5);
       });
       return;
     }
@@ -307,7 +326,7 @@ export default function PrintStudio() {
     const target = nextTargetFile;
     if (!target) return;
     handlePrintSingleFile(target);
-  }, [drop, isSingleZip, allAreZip, isMultiFile, filesList, nextTargetFile, handlePrintSingleFile, handleSaveArchive, handleVaporizeNow, isPrinting, isAutoBurning, isVaporizing]);
+  }, [drop, isSingleZip, allAreZip, isMultiFile, filesList, nextTargetFile, handlePrintSingleFile, handleSaveArchive, handleVaporizeNow, postPrintCountdown, isPrinting, isAutoBurning, isVaporizing]);
 
   // Block Ctrl+S / Cmd+S on desktop to enforce strict Zero-Download policy
   useEffect(() => {
@@ -566,7 +585,23 @@ export default function PrintStudio() {
 
         {/* ================= 4. ACTION BUTTONS ================= */}
         <div className="flex flex-col gap-2.5 pt-1">
-          {printedFileIds.size > 0 && (
+          {postPrintCountdown !== null && postPrintCountdown > 0 ? (
+            <motion.div
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="p-3 rounded-2xl bg-emerald-500/15 border border-emerald-500/35 text-emerald-700 dark:text-emerald-400 text-xs font-semibold flex items-center justify-between"
+            >
+              <div className="flex items-center gap-2">
+                <Check className="w-4 h-4 text-emerald-500 shrink-0" />
+                <span className="text-left font-mono">
+                  Print Complete • Returning to Home in {postPrintCountdown}s...
+                </span>
+              </div>
+              <span className="text-xs font-mono font-black px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 shrink-0">
+                {postPrintCountdown}s
+              </span>
+            </motion.div>
+          ) : printedFileIds.size > 0 && (
             <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-xs font-semibold flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Check className="w-4 h-4 text-emerald-500 shrink-0" />
@@ -589,7 +624,9 @@ export default function PrintStudio() {
               <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none" />
               <FolderDown className="w-4 h-4 text-emerald-100 shrink-0" />
               <span>
-                {isSingleZip
+                {postPrintCountdown !== null && postPrintCountdown > 0
+                  ? `Saved • Returning Home in ${postPrintCountdown}s (Click to Wipe Now)`
+                  : isSingleZip
                   ? 'Save ZIP Archive from RAM'
                   : allFilesPrinted
                   ? `All ${filesList.length} ZIPs Saved ✓ (Save Again)`
@@ -612,6 +649,13 @@ export default function PrintStudio() {
                   <>
                     <Loader2 className="w-4 h-4 animate-spin text-white shrink-0" />
                     <span className="truncate">Spooling...</span>
+                  </>
+                ) : postPrintCountdown !== null && postPrintCountdown > 0 ? (
+                  <>
+                    <Flame className="w-4 h-4 text-emerald-100 animate-pulse shrink-0" />
+                    <span className="truncate">
+                      Print Complete • Returning Home in {postPrintCountdown}s (Click to Wipe Now)
+                    </span>
                   </>
                 ) : isMultiFile ? (
                   allFilesPrinted ? (

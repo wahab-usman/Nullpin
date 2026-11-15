@@ -484,14 +484,14 @@ export async function fetchDropFromSupabase(pin) {
     const primaryFile = reconstructedFiles[0] || null;
     const primaryBlobUrl = primaryFile?.blobUrl || null;
 
-    // Single-Claim Enforcement: Immediately delete/consume the database row so no second tab or device can claim this PIN
+    // Single-Claim Enforcement: Mark status as 'claimed' so no second device or tab can claim this PIN
     try {
       await supabase
         .from(TABLE_NAME)
-        .delete()
+        .update({ status: 'claimed' })
         .eq('pin', searchPin);
     } catch (consumeErr) {
-      console.warn('[NullPin Supabase] Consume PIN error:', consumeErr);
+      console.warn('[NullPin Supabase] Claim PIN error:', consumeErr);
     }
 
     return {
@@ -530,13 +530,41 @@ export async function burnDropInSupabase(pin) {
   try {
     const searchPin = String(pin).trim();
 
-    // 1. Delete row from database (if not already consumed)
-    await supabase
-      .from(TABLE_NAME)
-      .delete()
-      .eq('pin', searchPin);
+    // 1. Broadcast DROP_BURNED immediately to all listening devices (e.g. sender on Laptop)
+    try {
+      const broadcastChannel = supabase.channel(`nullpin-sync-${searchPin}`);
+      broadcastChannel.subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          broadcastChannel.send({
+            type: 'broadcast',
+            event: 'DROP_BURNED',
+            payload: { pin: searchPin, status: 'burned' },
+          }).finally(() => {
+            supabase.removeChannel(broadcastChannel);
+          });
+        }
+      });
+    } catch (bErr) {
+      console.warn('[NullPin Supabase] Broadcast burn error:', bErr);
+    }
 
-    // 2. List and remove all files in the storage bucket folder
+    // 2. Mark status as burned in database table (triggers postgres_changes)
+    try {
+      await supabase
+        .from(TABLE_NAME)
+        .update({ status: 'burned' })
+        .eq('pin', searchPin);
+    } catch (e) {}
+
+    // 3. Delete row from database
+    try {
+      await supabase
+        .from(TABLE_NAME)
+        .delete()
+        .eq('pin', searchPin);
+    } catch (e) {}
+
+    // 4. List and remove all files in the storage bucket folder
     const { data: filesInFolder } = await supabase.storage
       .from(BUCKET_NAME)
       .list(searchPin);
@@ -552,30 +580,71 @@ export async function burnDropInSupabase(pin) {
 
 /**
  * Subscribes to real-time status updates (e.g. burn events) across devices.
+ * Uses both Realtime channels and a 2-second existence polling safeguard.
  */
 export function subscribeToSupabaseDrop(pin, onStatusChange) {
   if (!isSupabaseConfigured() || !supabase) return () => {};
 
   const searchPin = String(pin).trim();
+  let isCleanedUp = false;
+
+  // 1. Postgres changes channel + Broadcast channel
   const channel = supabase
-    .channel(`drop-status-${searchPin}`)
+    .channel(`nullpin-sync-${searchPin}`)
     .on(
       'postgres_changes',
       {
-        event: 'UPDATE',
+        event: '*',
         schema: 'public',
         table: TABLE_NAME,
         filter: `pin=eq.${searchPin}`,
       },
       (payload) => {
-        if (payload.new && typeof onStatusChange === 'function') {
+        if (payload.eventType === 'DELETE') {
+          if (typeof onStatusChange === 'function') onStatusChange({ status: 'burned' });
+        } else if (payload.new && typeof onStatusChange === 'function') {
           onStatusChange(payload.new);
         }
       }
     )
+    .on('broadcast', { event: 'DROP_BURNED' }, () => {
+      if (typeof onStatusChange === 'function') {
+        onStatusChange({ status: 'burned' });
+      }
+    })
     .subscribe();
 
+  // 2. High-reliability 2-second existence polling for cross-device burn sync
+  const pollInterval = setInterval(async () => {
+    if (isCleanedUp) return;
+    try {
+      const { data, error } = await supabase
+        .from(TABLE_NAME)
+        .select('status')
+        .eq('pin', searchPin)
+        .maybeSingle();
+
+      if (isCleanedUp) return;
+
+      // If record is missing (deleted on burn) OR status is burned, trigger burn on sender
+      if (error || !data || data.status === 'burned') {
+        clearInterval(pollInterval);
+        if (typeof onStatusChange === 'function') {
+          onStatusChange({ status: 'burned' });
+        }
+      } else if (data.status === 'claimed' || data.status === 'opened') {
+        if (typeof onStatusChange === 'function') {
+          onStatusChange({ status: data.status });
+        }
+      }
+    } catch (pollErr) {
+      // Ignore transient network errors
+    }
+  }, 2000);
+
   return () => {
+    isCleanedUp = true;
+    clearInterval(pollInterval);
     supabase.removeChannel(channel);
   };
 }

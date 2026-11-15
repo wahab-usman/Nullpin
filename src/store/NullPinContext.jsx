@@ -275,9 +275,6 @@ export function NullPinProvider({ children }) {
       setCurrentView('studio');
       setPinError(false);
       claimDropRecord(searchPin);
-      if (isSupabaseConfigured()) {
-        burnDropInSupabase(searchPin).catch(() => {});
-      }
       return true;
     }
 
@@ -294,9 +291,6 @@ export function NullPinProvider({ children }) {
       setCurrentView('studio');
       setPinError(false);
       claimDropRecord(searchPin);
-      if (isSupabaseConfigured()) {
-        burnDropInSupabase(searchPin).catch(() => {});
-      }
       return true;
     }
 
