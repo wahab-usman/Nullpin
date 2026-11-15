@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Sun, Moon, Volume2, VolumeX, Clock, Copy, Check, 
-  Download, ChevronDown, Smartphone, Monitor
+  Download, ChevronDown
 } from 'lucide-react';
 import { useTheme } from '../store/ThemeContext';
 import { useNullPin, useNullPinTimer } from '../store/NullPinContext';
@@ -250,8 +250,8 @@ export default function DynamicIsland() {
                                    hover:bg-slate-100/90 dark:hover:bg-zinc-800/90 transition-colors group cursor-pointer mb-1"
                       >
                         <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/15 flex items-center justify-center text-emerald-600 dark:text-emerald-400 flex-shrink-0">
-                            <Smartphone className="w-4 h-4" />
+                          <div className="w-9 h-9 rounded-xl overflow-hidden bg-zinc-950 border border-emerald-500/25 flex items-center justify-center p-1 shrink-0 shadow-xs">
+                            <img src="/icon-512.png" alt="NullPin Android" className="w-full h-full object-contain" />
                           </div>
                           <div>
                             <p className="text-xs font-bold text-slate-900 dark:text-zinc-100 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
@@ -273,11 +273,11 @@ export default function DynamicIsland() {
                                    hover:bg-slate-100/90 dark:hover:bg-zinc-800/90 transition-colors group cursor-pointer"
                       >
                         <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-xl bg-cyan-500/10 dark:bg-cyan-500/15 flex items-center justify-center text-cyan-600 dark:text-cyan-400 flex-shrink-0">
-                            <Monitor className="w-4 h-4" />
+                          <div className="w-9 h-9 rounded-xl overflow-hidden bg-zinc-950 border border-emerald-500/25 flex items-center justify-center p-1 shrink-0 shadow-xs">
+                            <img src="/icon-512.png" alt="NullPin Windows" className="w-full h-full object-contain" />
                           </div>
                           <div>
-                            <p className="text-xs font-bold text-slate-900 dark:text-zinc-100 group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors">
+                            <p className="text-xs font-bold text-slate-900 dark:text-zinc-100 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
                               Windows (.EXE)
                             </p>
                             <p className="text-[10px] text-slate-500 dark:text-zinc-400">
@@ -285,7 +285,7 @@ export default function DynamicIsland() {
                             </p>
                           </div>
                         </div>
-                        <Download className="w-4 h-4 text-slate-400 group-hover:text-cyan-500 shrink-0" />
+                        <Download className="w-4 h-4 text-slate-400 group-hover:text-emerald-500 shrink-0" />
                       </button>
                     </motion.div>
                   )}
