@@ -305,24 +305,8 @@ export default function HolographicTicket() {
             )}
           </div>
 
-          {/* SENDER STATUS & CANCEL ACTION */}
-          <div className="flex flex-col gap-2.5 sm:gap-3 pt-2">
-            <div className={`flex items-center justify-center gap-2.5 py-3 px-4 rounded-2xl border text-xs font-mono select-none transition-colors ${
-              activeDrop?.status === 'opened'
-                ? 'bg-emerald-500/15 border-emerald-500/35 text-emerald-600 dark:text-emerald-400 font-bold'
-                : 'bg-slate-100/70 dark:bg-zinc-800/60 border-slate-200/80 dark:border-zinc-700/60 text-slate-700 dark:text-zinc-300'
-            }`}>
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-              </span>
-              <span>
-                {activeDrop?.status === 'opened'
-                  ? '✓ Unlocked at print terminal!'
-                  : 'Waiting for terminal to enter PIN...'}
-              </span>
-            </div>
-
+          {/* SENDER ACTIONS */}
+          <div className="pt-2">
             <div className="grid grid-cols-2 gap-2 sm:gap-2.5">
               <button
                 type="button"
