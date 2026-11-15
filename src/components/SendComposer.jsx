@@ -296,8 +296,8 @@ export default function SendComposer() {
   return (
     <div className="w-full max-w-[500px] mx-auto flex flex-col items-center">
       {/* ================= 1. SLIDING PILL TABS ================= */}
-      <div className="flex justify-center mb-2.5 sm:mb-3.5 w-full px-1">
-        <div className="relative inline-flex p-1 rounded-full bg-slate-200/70 dark:bg-zinc-900/80 backdrop-blur-md border border-slate-300/60 dark:border-white/[0.08] shadow-sm">
+      <div className="flex justify-center mb-2 sm:mb-3 w-full px-1">
+        <div className="relative inline-flex p-0.5 sm:p-1 rounded-full bg-slate-200/70 dark:bg-zinc-900/80 backdrop-blur-md border border-slate-300/60 dark:border-white/[0.08] shadow-xs">
           {MODES.map((m) => {
             const Icon = m.icon;
             const isActive = mode === m.key;
@@ -341,9 +341,9 @@ export default function SendComposer() {
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25, ease: 'easeOut' }}
-        className="w-full max-w-[500px] rounded-2xl sm:rounded-3xl p-4 sm:p-5 bg-white/80 dark:bg-zinc-900/75 backdrop-blur-xl 
+        className="w-full max-w-[500px] rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 bg-white/80 dark:bg-zinc-900/75 backdrop-blur-xl 
                    border border-slate-200/90 dark:border-white/10 
-                   shadow-[0_20px_50px_rgba(0,0,0,0.06)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.4)] space-y-3 sm:space-y-3.5"
+                   shadow-[0_20px_50px_rgba(0,0,0,0.06)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.4)] space-y-2.5 sm:space-y-3.5"
       >
         {/* ================= MULTI-FILE DOCUMENT DROPZONE ================= */}
         {mode === 'doc' && (
@@ -365,23 +365,23 @@ export default function SendComposer() {
               // Empty Dropzone Prompt
               <div
                 onClick={() => fileInputRef.current?.click()}
-                className="flex flex-col items-center justify-center cursor-pointer py-6 sm:py-7 px-4"
+                className="flex flex-col items-center justify-center cursor-pointer py-5 sm:py-7 px-3 sm:px-4"
               >
                 <motion.div
                   animate={{ y: [0, -3, 0] }}
                   transition={{ repeat: Infinity, duration: 2.4, ease: 'easeInOut' }}
-                  className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-emerald-500/10 flex items-center justify-center mb-2 shrink-0"
+                  className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-emerald-500/10 flex items-center justify-center mb-1.5 sm:mb-2 shrink-0"
                 >
-                  <Upload className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                  <Upload className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600 dark:text-emerald-400" />
                 </motion.div>
-                <p className="text-sm font-bold text-slate-800 dark:text-zinc-200 text-center whitespace-nowrap">
+                <p className="text-xs sm:text-sm font-bold text-slate-800 dark:text-zinc-200 text-center whitespace-nowrap">
                   Drop Documents, Images, or ZIP
                 </p>
-                <p className="text-[11px] text-slate-400 dark:text-zinc-500 mt-0.5 text-center font-mono whitespace-nowrap">
+                <p className="text-[10px] sm:text-[11px] text-slate-400 dark:text-zinc-500 mt-0.5 text-center font-mono whitespace-nowrap">
                   Multi-file & ZIP • Strictly No Videos
                 </p>
 
-                <div className="mt-2.5 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100/80 dark:bg-zinc-800/60 text-[11px] font-mono text-slate-500 dark:text-zinc-400 whitespace-nowrap">
+                <div className="mt-2 sm:mt-2.5 inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full bg-slate-100/80 dark:bg-zinc-800/60 text-[10px] sm:text-[11px] font-mono text-slate-500 dark:text-zinc-400 whitespace-nowrap">
                   <span>Click or drag to select files</span>
                 </div>
               </div>
@@ -564,16 +564,16 @@ export default function SendComposer() {
         )}
 
         {/* ================= PRINT CONTROLS ================= */}
-        <div className="pt-2.5 border-t border-slate-100 dark:border-zinc-800/80 space-y-2.5">
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-3 items-center">
+        <div className="pt-2 sm:pt-2.5 border-t border-slate-100 dark:border-zinc-800/80 space-y-2 sm:space-y-2.5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 items-center">
             {/* Color Toggle */}
             <div>
               <span className="text-[10px] font-semibold text-slate-500 dark:text-zinc-400 block mb-1">Color</span>
-              <div className="relative flex p-0.5 rounded-xl bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 h-10 items-center">
+              <div className="relative flex p-0.5 rounded-xl bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 h-9.5 sm:h-10 items-center">
                 <button
                   type="button"
                   onClick={() => { sound.toggleSnap(); setColorMode('bw'); }}
-                  className={`relative z-10 flex-1 h-full rounded-lg text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap flex items-center justify-center ${colorMode === 'bw' ? 'text-slate-900 dark:text-white' : 'text-slate-500 hover:text-slate-700'
+                  className={`relative z-10 flex-1 h-full rounded-lg text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap flex items-center justify-center touch-manipulation ${colorMode === 'bw' ? 'text-slate-900 dark:text-white' : 'text-slate-500 hover:text-slate-700'
                     }`}
                 >
                   {colorMode === 'bw' && (
@@ -588,7 +588,7 @@ export default function SendComposer() {
                 <button
                   type="button"
                   onClick={() => { sound.toggleSnap(); setColorMode('color'); }}
-                  className={`relative z-10 flex-1 h-full rounded-lg text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap flex items-center justify-center ${colorMode === 'color' ? 'text-slate-900 dark:text-white' : 'text-slate-500 hover:text-slate-700'
+                  className={`relative z-10 flex-1 h-full rounded-lg text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap flex items-center justify-center touch-manipulation ${colorMode === 'color' ? 'text-slate-900 dark:text-white' : 'text-slate-500 hover:text-slate-700'
                     }`}
                 >
                   {colorMode === 'color' && (
@@ -606,11 +606,11 @@ export default function SendComposer() {
             {/* Sides / Duplex */}
             <div>
               <span className="text-[10px] font-semibold text-slate-500 dark:text-zinc-400 block mb-1">Sides</span>
-              <div className="relative flex p-0.5 rounded-xl bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 h-10 items-center">
+              <div className="relative flex p-0.5 rounded-xl bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 h-9.5 sm:h-10 items-center">
                 <button
                   type="button"
                   onClick={() => { sound.toggleSnap(); setSides('single'); }}
-                  className={`relative z-10 flex-1 h-full rounded-lg text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap flex items-center justify-center ${sides === 'single' ? 'text-slate-900 dark:text-white' : 'text-slate-500 hover:text-slate-700'
+                  className={`relative z-10 flex-1 h-full rounded-lg text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap flex items-center justify-center touch-manipulation ${sides === 'single' ? 'text-slate-900 dark:text-white' : 'text-slate-500 hover:text-slate-700'
                     }`}
                 >
                   {sides === 'single' && (
@@ -625,7 +625,7 @@ export default function SendComposer() {
                 <button
                   type="button"
                   onClick={() => { sound.toggleSnap(); setSides('double'); }}
-                  className={`relative z-10 flex-1 h-full rounded-lg text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap flex items-center justify-center ${sides === 'double' ? 'text-slate-900 dark:text-white' : 'text-slate-500 hover:text-slate-700'
+                  className={`relative z-10 flex-1 h-full rounded-lg text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap flex items-center justify-center touch-manipulation ${sides === 'double' ? 'text-slate-900 dark:text-white' : 'text-slate-500 hover:text-slate-700'
                     }`}
                 >
                   {sides === 'double' && (
@@ -643,11 +643,11 @@ export default function SendComposer() {
             {/* Copies Counter - Mobile: col-span-2, Desktop: col-span-1 */}
             <div className="col-span-2 sm:col-span-1">
               <span className="text-[10px] font-semibold text-slate-500 dark:text-zinc-400 block mb-1">Copies</span>
-              <div className="flex items-center justify-between p-1 rounded-xl bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 h-10">
+              <div className="flex items-center justify-between p-1 rounded-xl bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 h-9.5 sm:h-10">
                 <button
                   type="button"
                   onClick={() => { sound.toggleSnap(); setCopies(Math.max(1, copies - 1)); }}
-                  className="w-8 h-8 rounded-lg bg-white dark:bg-zinc-700 flex items-center justify-center text-slate-700 dark:text-zinc-200 shadow-xs cursor-pointer touch-manipulation hover:bg-slate-50 dark:hover:bg-zinc-600 transition-colors shrink-0"
+                  className="w-9 sm:w-8 h-full rounded-lg bg-white dark:bg-zinc-700 flex items-center justify-center text-slate-700 dark:text-zinc-200 shadow-xs cursor-pointer touch-manipulation hover:bg-slate-50 dark:hover:bg-zinc-600 transition-colors shrink-0"
                 >
                   <Minus className="w-3.5 h-3.5" />
                 </button>
@@ -657,7 +657,7 @@ export default function SendComposer() {
                 <button
                   type="button"
                   onClick={() => { sound.toggleSnap(); setCopies(Math.min(20, copies + 1)); }}
-                  className="w-8 h-8 rounded-lg bg-white dark:bg-zinc-700 flex items-center justify-center text-slate-700 dark:text-zinc-200 shadow-xs cursor-pointer touch-manipulation hover:bg-slate-50 dark:hover:bg-zinc-600 transition-colors shrink-0"
+                  className="w-9 sm:w-8 h-full rounded-lg bg-white dark:bg-zinc-700 flex items-center justify-center text-slate-700 dark:text-zinc-200 shadow-xs cursor-pointer touch-manipulation hover:bg-slate-50 dark:hover:bg-zinc-600 transition-colors shrink-0"
                 >
                   <Plus className="w-3.5 h-3.5" />
                 </button>

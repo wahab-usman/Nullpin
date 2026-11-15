@@ -358,7 +358,7 @@ export default function DynamicIsland() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10, scale: 0.95 }}
             transition={{ duration: 0.22, ease: 'easeOut' }}
-            className="fixed top-16 sm:top-20 left-1/2 -translate-x-1/2 z-50 pointer-events-none flex items-center gap-2.5 px-4 py-2 rounded-full bg-zinc-950/90 dark:bg-zinc-900/95 text-white border border-emerald-500/40 shadow-[0_12px_36px_rgba(0,0,0,0.5),0_0_20px_rgba(16,185,129,0.25)] backdrop-blur-xl font-mono text-xs font-semibold select-none whitespace-nowrap"
+            className="fixed top-[calc(max(env(safe-area-inset-top,0px),2.75rem)+3.5rem)] sm:top-20 left-1/2 -translate-x-1/2 z-50 pointer-events-none flex items-center gap-2.5 px-4 py-2 rounded-full bg-zinc-950/90 dark:bg-zinc-900/95 text-white border border-emerald-500/40 shadow-[0_12px_36px_rgba(0,0,0,0.5),0_0_20px_rgba(16,185,129,0.25)] backdrop-blur-xl font-mono text-xs font-semibold select-none whitespace-nowrap"
           >
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />

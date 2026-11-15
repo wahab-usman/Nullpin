@@ -321,10 +321,10 @@ export default function PrintStudio() {
         className="w-full max-w-[500px] rounded-2xl sm:rounded-3xl bg-white/90 dark:bg-zinc-900/90 backdrop-blur-2xl 
                    border border-slate-200/90 dark:border-white/10 
                    shadow-[0_25px_60px_rgba(0,0,0,0.08)] dark:shadow-[0_25px_70px_rgba(0,0,0,0.6)]
-                   overflow-hidden p-4 sm:p-5 space-y-3 sm:space-y-4"
+                   overflow-hidden p-3.5 sm:p-5 space-y-2.5 sm:space-y-4"
       >
         {/* ================= 1. TERMINAL HEADER ================= */}
-        <div className="flex items-center justify-between pb-3.5 border-b border-slate-100 dark:border-zinc-800/80">
+        <div className="flex items-center justify-between pb-2.5 sm:pb-3.5 border-b border-slate-100 dark:border-zinc-800/80">
           <div className="flex items-center gap-2 sm:gap-2.5">
             <span className="relative flex h-2.5 w-2.5">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />

@@ -17,12 +17,12 @@ export default function SpatialStage() {
   const isPortalMode = currentView === 'portal';
 
   return (
-    <div className="w-full max-w-[500px] mx-auto flex flex-col items-center gap-2.5 sm:gap-3.5">
+    <div className="w-full max-w-[500px] mx-auto flex flex-col items-center gap-2 sm:gap-3">
       {/* Centered Segmented Switcher (Visible in portal mode) */}
       <AnimatePresence>
         {isPortalMode && (
           <div className="flex justify-center w-full px-1">
-            <div className="relative inline-flex p-1 rounded-full bg-slate-200/70 dark:bg-zinc-900/80 backdrop-blur-md border border-slate-300/60 dark:border-white/[0.08] shadow-sm">
+            <div className="relative inline-flex p-0.5 sm:p-1 rounded-full bg-slate-200/70 dark:bg-zinc-900/80 backdrop-blur-md border border-slate-300/60 dark:border-white/[0.08] shadow-xs">
               {/* Send Drop Tab (FIRST) */}
               <button
                 type="button"
@@ -30,7 +30,7 @@ export default function SpatialStage() {
                   sound.toggleSnap();
                   setActiveStageTab('send');
                 }}
-                className={`relative z-10 flex items-center justify-center gap-1.5 px-4 sm:px-5 py-1.5 rounded-full text-xs sm:text-sm font-semibold transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
+                className={`relative z-10 flex items-center justify-center gap-1.5 px-3.5 sm:px-5 py-1.5 rounded-full text-xs sm:text-sm font-semibold transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
                   activeStageTab === 'send'
                     ? 'text-slate-900 dark:text-white'
                     : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
@@ -56,7 +56,7 @@ export default function SpatialStage() {
                   sound.toggleSnap();
                   setActiveStageTab('unlock');
                 }}
-                className={`relative z-10 flex items-center justify-center gap-1.5 px-4 sm:px-5 py-1.5 rounded-full text-xs sm:text-sm font-semibold transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
+                className={`relative z-10 flex items-center justify-center gap-1.5 px-3.5 sm:px-5 py-1.5 rounded-full text-xs sm:text-sm font-semibold transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
                   activeStageTab === 'unlock'
                     ? 'text-slate-900 dark:text-white'
                     : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'

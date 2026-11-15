@@ -89,7 +89,7 @@ export default function HolographicTicket() {
                    overflow-hidden"
       >
         {/* TICKET TOP HEADER */}
-        <div className="px-4 sm:px-6 pt-3.5 sm:pt-4 pb-2.5 sm:pb-3 border-b border-slate-100 dark:border-zinc-800/80 flex items-center justify-between">
+        <div className="px-3.5 sm:px-6 pt-3 sm:pt-4 pb-2 sm:pb-3 border-b border-slate-100 dark:border-zinc-800/80 flex items-center justify-between">
           <div className="flex items-center gap-2 sm:gap-2.5">
             <span className="relative flex h-2.5 w-2.5">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
@@ -120,7 +120,7 @@ export default function HolographicTicket() {
 
         {/* LIVE CLOUD VAULT SYNC TELEMETRY BAR */}
         {uploadState && uploadState.status !== 'idle' && (
-          <div className="mx-4 sm:mx-6 mt-3 p-2.5 rounded-xl bg-slate-100/80 dark:bg-zinc-800/60 border border-slate-200/80 dark:border-zinc-700/60 text-left">
+          <div className="mx-3.5 sm:mx-6 mt-2.5 sm:mt-3 p-2.5 rounded-xl bg-slate-100/80 dark:bg-zinc-800/60 border border-slate-200/80 dark:border-zinc-700/60 text-left">
             <div className="flex items-center justify-between text-[11px] font-mono mb-1.5">
               <span className="flex items-center gap-1.5 font-semibold text-slate-700 dark:text-zinc-200">
                 {uploadState.status === 'synced' ? (
@@ -155,28 +155,28 @@ export default function HolographicTicket() {
         )}
 
         {/* 4-DIGIT PIN SHOWCASE */}
-        <div className="px-4 sm:px-6 pt-4 sm:pt-5 pb-3 sm:pb-4 text-center">
-          <p className="text-[10px] sm:text-[11px] font-mono font-bold uppercase tracking-widest text-slate-400 dark:text-zinc-400 mb-3 sm:mb-4 whitespace-nowrap">
+        <div className="px-3.5 sm:px-6 pt-3.5 sm:pt-5 pb-2.5 sm:pb-4 text-center">
+          <p className="text-[10px] sm:text-[11px] font-mono font-bold uppercase tracking-widest text-slate-400 dark:text-zinc-400 mb-2.5 sm:mb-4 whitespace-nowrap">
             SHARE THIS 4-DIGIT PIN WITH THE PRINT TERMINAL
           </p>
 
           {/* GIANT KINETIC PIN KEYCAPS */}
-          <div className="flex items-center justify-center gap-2.5 sm:gap-4 mb-3 sm:mb-4">
+          <div className="flex items-center justify-center gap-2 sm:gap-4 mb-2.5 sm:mb-4">
             {pin.split('').map((digit, i) => (
               <motion.div
                 key={i}
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.05, duration: 0.2 }}
-                className="relative w-14 h-16 sm:w-18 sm:h-20 rounded-2xl sm:rounded-3xl
+                className="relative w-13 h-15 min-[380px]:w-14 min-[380px]:h-16 sm:w-18 sm:h-20 rounded-xl sm:rounded-3xl
                            bg-slate-100/90 dark:bg-zinc-800/80 
                            border-2 border-emerald-500/30 dark:border-emerald-500/35 
-                           flex items-center justify-center font-mono font-black text-3xl sm:text-4xl 
+                           flex items-center justify-center font-mono font-black text-2xl sm:text-4xl 
                            text-slate-900 dark:text-emerald-400 
                            shadow-[0_8px_20px_rgba(16,185,129,0.08)] dark:shadow-[0_0_30px_rgba(16,185,129,0.18)]"
               >
                 {/* Specular subtle highlight */}
-                <div className="absolute top-1.5 inset-x-2 sm:inset-x-3 h-[1px] bg-white/40 dark:bg-white/15 rounded-full" />
+                <div className="absolute top-1.5 inset-x-2 sm:inset-x-3 h-[1px] bg-white/40 dark:white/15 rounded-full" />
                 <span className="relative z-10 select-none">{digit}</span>
               </motion.div>
             ))}
@@ -215,7 +215,7 @@ export default function HolographicTicket() {
         </div>
 
         {/* PAYLOAD INFO & PRINT SPECS */}
-        <div className="px-4 sm:px-8 py-4 sm:py-5 space-y-3.5 sm:space-y-4">
+        <div className="px-3.5 sm:px-8 py-3.5 sm:py-5 space-y-3 sm:space-y-4">
           {/* File summary card (Multi-file or Single file) */}
           {isMultiFile ? (
             <div className="p-3.5 rounded-2xl bg-slate-100/70 dark:bg-zinc-800/50 border border-slate-200/80 dark:border-zinc-800 space-y-2.5">

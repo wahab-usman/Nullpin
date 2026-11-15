@@ -25,7 +25,7 @@ function AtmosphericCanvas() {
 
   return (
     <div
-      className={`min-h-[100dvh] relative overflow-x-hidden font-sans transition-colors duration-200 selection:bg-emerald-500/30 flex flex-col items-center justify-between py-3 sm:py-5 px-3.5 sm:px-6 ${
+      className={`min-h-[100dvh] relative overflow-x-hidden font-sans transition-colors duration-200 selection:bg-emerald-500/30 flex flex-col items-center justify-between px-3 sm:px-6 pt-[max(env(safe-area-inset-top,0px),2.75rem)] sm:pt-6 pb-[max(env(safe-area-inset-bottom,0px),0.75rem)] sm:pb-4 ${
         isDark ? 'bg-[#09090B] text-zinc-100' : 'bg-[#F8F9FA] text-slate-900'
       }`}
     >
@@ -43,7 +43,7 @@ function AtmosphericCanvas() {
       </div>
 
       {/* Main Content Stage (Fixed top alignment - stops switcher and card from jumping down on Enter PIN) */}
-      <main className="relative z-10 w-full max-w-[500px] mx-auto flex-1 flex flex-col items-center justify-start pt-2.5 sm:pt-4 pb-2">
+      <main className="relative z-10 w-full max-w-[500px] mx-auto flex-1 flex flex-col items-center justify-start pt-1.5 sm:pt-3 pb-2">
         <SpatialStage />
       </main>
 

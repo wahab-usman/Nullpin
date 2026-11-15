@@ -86,7 +86,7 @@ export default function KineticPinKeypad() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25, ease: 'easeOut' }}
         onClick={handleBoxClick}
-        className={`w-full max-w-[500px] p-4 sm:p-5 rounded-2xl sm:rounded-3xl backdrop-blur-xl transition-all duration-200 cursor-pointer select-none
+        className={`w-full max-w-[500px] p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl backdrop-blur-xl transition-all duration-200 cursor-pointer select-none
           ${
             pinError
               ? 'border-2 border-rose-500/80 bg-rose-500/[0.04]'
@@ -96,14 +96,14 @@ export default function KineticPinKeypad() {
           }`}
       >
         {/* Card Header */}
-        <div className="text-center mb-4 sm:mb-5">
-          <div className="inline-flex items-center justify-center w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 mb-2">
-            <Lock className="w-5 h-5" />
+        <div className="text-center mb-3 sm:mb-5">
+          <div className="inline-flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 mb-1.5 sm:mb-2">
+            <Lock className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
-          <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-zinc-100 tracking-tight whitespace-nowrap">
+          <h2 className="text-lg sm:text-2xl font-extrabold text-slate-900 dark:text-zinc-100 tracking-tight whitespace-nowrap">
             Unlock & Print
           </h2>
-          <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1 whitespace-nowrap">
+          <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5 sm:mt-1 whitespace-nowrap">
             Type the 4-digit PIN from the sender's device
           </p>
         </div>
@@ -118,7 +118,7 @@ export default function KineticPinKeypad() {
                 }
               : {}
           }
-          className="flex items-center justify-center gap-2.5 sm:gap-4 mb-4 sm:mb-5"
+          className="flex items-center justify-center gap-2 sm:gap-4 mb-3 sm:mb-5"
         >
           {pinDigits.map((digit, i) => {
             const isFilled = digit !== '';
@@ -127,7 +127,7 @@ export default function KineticPinKeypad() {
             return (
               <div
                 key={i}
-                className={`relative w-14 h-16 sm:w-18 sm:h-20 rounded-2xl flex items-center justify-center
+                className={`relative w-13 h-15 min-[380px]:w-14 min-[380px]:h-16 sm:w-18 sm:h-20 rounded-xl sm:rounded-2xl flex items-center justify-center
                   transition-all duration-150 select-none
                   ${
                     pinError
