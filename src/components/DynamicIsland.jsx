@@ -15,7 +15,7 @@ import { sound } from '../utils/sound';
 export const APP_DOWNLOAD_LINKS = {
   androidApk: "/NullPin.apk",
   windowsExe: "/api/download-exe",
-  version: "v1.0.5"
+  version: "v1.0.6"
 };
 
 function formatTime(seconds) {
