@@ -8,7 +8,7 @@ import {
 import { useNullPin } from '../store/NullPinContext';
 import { sound } from '../utils/sound';
 import { fireVaporizeSparks } from './VaporizeEffect';
-import { printFromRam } from '../utils/ramPrinter';
+import { printFromRam, preloadDropBlobs } from '../utils/ramPrinter';
 
 function formatSize(bytes) {
   if (!bytes) return '1.8 MB';
@@ -39,6 +39,15 @@ export default function PrintStudio() {
   const [printedFileIds, setPrintedFileIds] = useState(new Set());
 
   const drop = unlockedDrop;
+
+  // Eagerly pre-fetch & cache all drop files into memory upon PIN unlock
+  useEffect(() => {
+    if (drop) {
+      preloadDropBlobs(drop).catch((err) => {
+        console.warn('[PrintStudio] Background preload warning:', err);
+      });
+    }
+  }, [drop]);
 
   const filesList = drop?.files && drop.files.length > 0
     ? drop.files
@@ -228,7 +237,7 @@ export default function PrintStudio() {
         const nextSet = new Set([...prev, fKey]);
         const allDone = filesList.length > 0 && filesList.every((f) => nextSet.has(f.id || f.name));
         if (allDone) {
-          startAutoBurnSequence(3000);
+          startAutoBurnSequence(120000, 'Print job active. Auto-purging RAM buffer in 2 minutes...');
         }
         return nextSet;
       });
@@ -271,7 +280,7 @@ export default function PrintStudio() {
         clearTimeout(watchdogTimer);
         setIsPrinting(false);
         setPrintedFileIds((prev) => new Set([...prev, fKey]));
-        startAutoBurnSequence(3000);
+        startAutoBurnSequence(120000, 'Print job active. Auto-purging RAM buffer in 2 minutes...');
       });
       return;
     }

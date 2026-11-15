@@ -210,6 +210,43 @@ export async function ensureSameOriginBlobUrl(url, mimeType = 'application/pdf')
 }
 
 /**
+ * Eagerly pre-fetches and caches all files in a drop into same-origin Blobs and Object URLs.
+ * Runs in the background as soon as PrintStudio opens so clicking 'Print' is instant with zero network wait.
+ */
+export async function preloadDropBlobs(drop) {
+  if (!drop) return;
+  const list = drop.files && drop.files.length > 0
+    ? drop.files
+    : (drop.file ? [drop.file] : []);
+
+  const tasks = list.map(async (fileObj) => {
+    let url = fileObj.blobUrl || drop.blobUrl;
+    if (!url && fileObj.rawFile instanceof Blob) {
+      url = URL.createObjectURL(fileObj.rawFile);
+      fileObj.blobUrl = url;
+    }
+    if (url) {
+      const isPdf = (fileObj.type === 'application/pdf' || (fileObj.name || '').toLowerCase().endsWith('.pdf'));
+      const isImg = (fileObj.type || '').startsWith('image/') || /\.(png|jpe?g|webp|svg|gif|bmp)$/i.test(fileObj.name || '');
+      const mime = fileObj.type || (isPdf ? 'application/pdf' : isImg ? 'image/png' : 'application/octet-stream');
+      const cleanBlobUrl = await ensureSameOriginBlobUrl(url, mime);
+      fileObj.blobUrl = cleanBlobUrl;
+    }
+  });
+
+  if (drop.mode === 'idcard') {
+    if (drop.frontBlobUrl) {
+      tasks.push(ensureSameOriginBlobUrl(drop.frontBlobUrl, 'image/jpeg'));
+    }
+    if (drop.backBlobUrl) {
+      tasks.push(ensureSameOriginBlobUrl(drop.backBlobUrl, 'image/jpeg'));
+    }
+  }
+
+  await Promise.allSettled(tasks);
+}
+
+/**
  * Primary RAM Printing Engine:
  * Creates an isolated hidden iframe that Chrome/Edge/Firefox PDFium & Layout engines
  * will render without clipping, and dispatches direct print calls.
@@ -241,10 +278,10 @@ export async function printFromRam(dropData, onPrintComplete) {
   const iframe = document.createElement('iframe');
   iframe.id = 'nullpin-ram-print-frame';
 
-  // CRITICAL CSS RULE: Chrome's PDF plugin refuses to initialize if iframe is 0px/1px or display:none.
-  // Full 800x600 dimensions off-screen allow immediate PDFium plugin initialization.
+  // CRITICAL CSS RULE: Position inside active viewport bounds so Chromium compositor
+  // and PDFium plugin prioritize rendering without off-screen throttling.
   iframe.style.cssText =
-    'position: fixed; left: -9999px; top: 0; width: 800px; height: 600px; opacity: 0; pointer-events: none; border: 0; z-index: -999;';
+    'position: fixed; right: 0; bottom: 0; width: 800px; height: 600px; opacity: 0.01; pointer-events: none; border: 0; z-index: -1;';
 
   // State to prevent duplicate onPrintComplete triggers
   let isCompleted = false;
@@ -782,30 +819,29 @@ function renderHtmlAndPrint(iframe, htmlContent, onAttachListener, onComplete) {
     }, 250);
   };
 
-  const images = doc.querySelectorAll('img');
+  const images = Array.from(doc.querySelectorAll('img'));
   if (images.length === 0) {
     executePrint();
     return;
   }
 
-  let loadedCount = 0;
-  const onImgLoad = () => {
-    loadedCount++;
-    if (loadedCount >= images.length) {
-      executePrint();
-    }
-  };
-
-  images.forEach((img) => {
-    if (img.complete) {
-      onImgLoad();
-    } else {
-      img.onload = onImgLoad;
-      img.onerror = onImgLoad;
-    }
+  // Pre-decode all images into GPU raster memory before calling print()
+  Promise.all(
+    images.map((img) => {
+      if (typeof img.decode === 'function') {
+        return img.decode().catch(() => {});
+      }
+      return new Promise((res) => {
+        if (img.complete) return res();
+        img.onload = () => res();
+        img.onerror = () => res();
+      });
+    })
+  ).then(() => {
+    executePrint();
   });
 
-  // Fallback timeout in case image loading stalls (only if not already printed)
+  // Fallback timeout in case image decoding or network stalls
   safetyTimeout = setTimeout(() => {
     if (!printDispatched) {
       executePrint();

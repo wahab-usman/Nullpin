@@ -27,7 +27,7 @@ export default async function handler() {
   if (contentLength) {
     headers.set('Content-Length', contentLength);
   }
-  headers.set('Cache-Control', 'public, max-age=3600');
+  headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
 
   return new Response(upstream.body, {
     status: 200,
