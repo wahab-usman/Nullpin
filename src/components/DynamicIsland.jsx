@@ -15,7 +15,7 @@ import { sound } from '../utils/sound';
 export const APP_DOWNLOAD_LINKS = {
   androidApk: "/NullPin.apk",
   windowsExe: "https://github.com/wahab-usman/Nullpin/releases/download/v1.0.0/NullPin-Setup.exe",
-  version: "v1.0.0"
+  version: "v1.0.1"
 };
 
 function formatTime(seconds) {
