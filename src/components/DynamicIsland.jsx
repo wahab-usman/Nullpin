@@ -14,7 +14,7 @@ import { sound } from '../utils/sound';
 // =========================================================================
 export const APP_DOWNLOAD_LINKS = {
   androidApk: "/NullPin.apk",
-  windowsExe: "https://github.com/wahab-usman/Nullpin/releases/download/v1.0.0/NullPin-Setup.exe",
+  windowsExe: "/api/download-exe",
   version: "v1.0.2"
 };
 
@@ -94,16 +94,26 @@ export default function DynamicIsland() {
     }
   };
 
-  // Windows Setup .EXE Direct Download
+  // Windows Setup .EXE Direct Download via Edge Streaming Proxy
   const handleDownloadWindows = (e) => {
     e?.stopPropagation?.();
     sound.toggleSnap();
     setIsDownloadOpen(false);
 
-    const exeLink =
-      APP_DOWNLOAD_LINKS.windowsExe ||
-      'https://github.com/wahab-usman/Nullpin/releases/download/v1.0.0/NullPin-Setup.exe';
-    window.location.assign(exeLink);
+    const link = APP_DOWNLOAD_LINKS.windowsExe || '/api/download-exe';
+    try {
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = link;
+      a.download = 'NullPin-Setup.exe';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        if (document.body.contains(a)) document.body.removeChild(a);
+      }, 150);
+    } catch {
+      window.location.assign(link);
+    }
   };
 
   return (
