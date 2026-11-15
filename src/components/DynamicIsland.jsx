@@ -15,7 +15,7 @@ import { sound } from '../utils/sound';
 export const APP_DOWNLOAD_LINKS = {
   androidApk: "/NullPin.apk",
   windowsExe: "https://github.com/wahab-usman/Nullpin/releases/download/v1.0.0/NullPin-Setup.exe",
-  version: "v1.0.1"
+  version: "v1.0.2"
 };
 
 function formatTime(seconds) {
@@ -26,7 +26,7 @@ function formatTime(seconds) {
 
 export default function DynamicIsland() {
   const { isDark, toggle } = useTheme();
-  const { activeDrop, soundEnabled, toggleSound, currentView } = useNullPin();
+  const { activeDrop, soundEnabled, toggleSound, currentView, setCurrentView } = useNullPin();
   const { timeLeft } = useNullPinTimer();
   const [copied, setCopied] = useState(false);
   const [showDownloadMenu, setShowDownloadMenu] = useState(false);
@@ -43,7 +43,7 @@ export default function DynamicIsland() {
       window.Capacitor?.isNativePlatform?.() ||
       window.Capacitor?.isNativePlatform === true);
 
-  const hasActivePin = activeDrop && activeDrop.pin && currentView === 'ticket';
+  const hasActivePin = Boolean(activeDrop?.pin && activeDrop?.status !== 'burned');
   const isTimeLow = timeLeft <= 60;
 
   const handleCopyPin = (e) => {
@@ -52,6 +52,9 @@ export default function DynamicIsland() {
       navigator.clipboard.writeText(activeDrop.pin).catch(() => {});
       setCopied(true);
       sound.toggleSnap();
+      if (currentView !== 'ticket') {
+        setCurrentView('ticket');
+      }
       setTimeout(() => setCopied(false), 1800);
     }
   };

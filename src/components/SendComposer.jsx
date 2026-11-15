@@ -341,9 +341,9 @@ export default function SendComposer() {
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25, ease: 'easeOut' }}
-        className="w-full max-w-[500px] rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 bg-white/80 dark:bg-zinc-900/75 backdrop-blur-xl 
+        className="w-full max-w-[500px] rounded-2xl sm:rounded-3xl p-4 sm:p-5 bg-white/80 dark:bg-zinc-900/75 backdrop-blur-xl 
                    border border-slate-200/90 dark:border-white/10 
-                   shadow-[0_20px_50px_rgba(0,0,0,0.06)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.4)] space-y-2.5 sm:space-y-3.5"
+                   shadow-[0_20px_50px_rgba(0,0,0,0.06)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.4)] space-y-3 sm:space-y-4"
       >
         {/* ================= MULTI-FILE DOCUMENT DROPZONE ================= */}
         {mode === 'doc' && (
@@ -365,7 +365,7 @@ export default function SendComposer() {
               // Empty Dropzone Prompt
               <div
                 onClick={() => fileInputRef.current?.click()}
-                className="flex flex-col items-center justify-center cursor-pointer py-5 sm:py-7 px-3 sm:px-4"
+                className="flex flex-col items-center justify-center cursor-pointer py-7 sm:py-9 px-4"
               >
                 <motion.div
                   animate={{ y: [0, -3, 0] }}

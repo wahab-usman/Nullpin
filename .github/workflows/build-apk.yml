@@ -45,6 +45,9 @@ jobs:
 
       - name: Build Web Application
         run: npm run build
+        env:
+          VITE_SUPABASE_URL: 'https://irqspxluxuhktblzabez.supabase.co'
+          VITE_SUPABASE_ANON_KEY: 'sb_publishable_3YL2mPK14wuJXI5Bc6Qedg_iPpguzdQ'
 
       - name: Sync Capacitor Android
         run: npx cap sync android
@@ -75,6 +78,19 @@ jobs:
           name: 'NullPin v1.0.0'
           files: NullPin.apk
           token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update public/NullPin.apk and commit
+        run: |
+          cp NullPin.apk public/NullPin.apk
+          git config --global user.name "wahab-usman"
+          git config --global user.email "151013258+wahab-usman@users.noreply.github.com"
+          git add public/NullPin.apk
+          if git diff --staged --quiet; then
+            echo "No changes to public/NullPin.apk"
+          else
+            git commit -m "chore(release): auto-update public/NullPin.apk with v1.0.2 release [skip ci]"
+            git push origin main
+          fi
 
       - name: Upload APK Build Artifact
         uses: actions/upload-artifact@v4

@@ -37,7 +37,8 @@ export default function HolographicTicket() {
   const { 
     activeDrop, 
     triggerVaporize, 
-    uploadState 
+    uploadState,
+    resetToPortal 
   } = useNullPin();
   const { timeLeft } = useNullPinTimer();
 
@@ -322,17 +323,34 @@ export default function HolographicTicket() {
               </span>
             </div>
 
-            <button
-              type="button"
-              onClick={() => {
-                triggerVaporize();
-              }}
-              className="w-full py-2.5 px-4 rounded-xl text-xs font-bold text-rose-500 
-                         hover:bg-rose-500/10 transition-colors flex items-center justify-center gap-1.5 cursor-pointer touch-manipulation min-h-[44px]"
-            >
-              <Flame className="w-3.5 h-3.5" />
-              <span>Cancel & Burn Drop Now</span>
-            </button>
+            <div className="grid grid-cols-2 gap-2 sm:gap-2.5">
+              <button
+                type="button"
+                onClick={() => {
+                  sound.toggleSnap();
+                  resetToPortal();
+                }}
+                className="py-2.5 px-3 rounded-xl text-xs font-semibold text-slate-700 dark:text-zinc-200 
+                           bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 
+                           border border-slate-200/80 dark:border-zinc-700/80 transition-colors 
+                           flex items-center justify-center gap-1.5 cursor-pointer touch-manipulation min-h-[44px]"
+              >
+                <span>Back to Portal</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  triggerVaporize();
+                }}
+                className="py-2.5 px-3 rounded-xl text-xs font-bold text-rose-500 
+                           hover:bg-rose-500/10 border border-rose-500/25 transition-colors 
+                           flex items-center justify-center gap-1.5 cursor-pointer touch-manipulation min-h-[44px]"
+              >
+                <Flame className="w-3.5 h-3.5" />
+                <span>Burn Drop</span>
+              </button>
+            </div>
           </div>
         </div>
       </motion.div>

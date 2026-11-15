@@ -38,17 +38,17 @@ function AtmosphericCanvas() {
       </div>
 
       {/* Top Capsule Header */}
-      <div className="relative z-30 w-full flex justify-center">
+      <div className="relative z-30 w-full flex justify-center shrink-0">
         <DynamicIsland />
       </div>
 
-      {/* Main Content Stage (Fixed top alignment - stops switcher and card from jumping down on Enter PIN) */}
-      <main className="relative z-10 w-full max-w-[500px] mx-auto flex-1 flex flex-col items-center justify-start pt-1.5 sm:pt-3 pb-2">
+      {/* Main Content Stage (Vertically centered between Header and Footer) */}
+      <main className="relative z-10 w-full max-w-[500px] mx-auto flex-1 flex flex-col items-center justify-center my-auto py-2 sm:py-3">
         <SpatialStage />
       </main>
 
       {/* Minimalist Telemetry Footer */}
-      <footer className="relative z-10 w-full max-w-[500px] mx-auto pt-2 pb-0.5 flex flex-col sm:flex-row items-center justify-between gap-1 text-[9px] min-[380px]:text-[10px] font-mono text-slate-400 dark:text-zinc-500 border-t border-slate-200/50 dark:border-zinc-800/50 text-center sm:text-left">
+      <footer className="relative z-10 w-full max-w-[500px] mx-auto pt-2 pb-0.5 flex flex-col sm:flex-row items-center justify-between gap-1 text-[9px] min-[380px]:text-[10px] font-mono text-slate-400 dark:text-zinc-500 border-t border-slate-200/50 dark:border-zinc-800/50 text-center sm:text-left shrink-0">
         <div className="flex items-center gap-1.5 justify-center sm:justify-start shrink-0">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
           <span className="whitespace-nowrap">NULLPIN • ZERO-TRACE VOLATILE RAM</span>
