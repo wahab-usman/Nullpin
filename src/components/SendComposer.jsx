@@ -564,23 +564,28 @@ export default function SendComposer() {
         )}
 
         {/* ================= PRINT CONTROLS ================= */}
-        <div className="pt-2 sm:pt-2.5 border-t border-slate-100 dark:border-zinc-800/80 space-y-2 sm:space-y-2.5">
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 items-center">
+        <div className="pt-2.5 sm:pt-3 border-t border-slate-100 dark:border-zinc-800/80 space-y-2.5 sm:space-y-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-3 items-center">
             {/* Color Toggle */}
-            <div>
-              <span className="text-[10px] font-semibold text-slate-500 dark:text-zinc-400 block mb-1">Color</span>
-              <div className="relative flex p-0.5 rounded-xl bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 h-9.5 sm:h-10 items-center">
+            <div className="col-span-1">
+              <span className="text-[11px] font-semibold uppercase tracking-wider mb-1.5 opacity-75 text-zinc-600 dark:text-zinc-400 block select-none">
+                Color
+              </span>
+              <div className="relative flex p-1 rounded-xl bg-zinc-100 dark:bg-zinc-900/90 border border-zinc-200/80 dark:border-white/10 h-11 items-center">
                 <button
                   type="button"
                   onClick={() => { sound.toggleSnap(); setColorMode('bw'); }}
-                  className={`relative z-10 flex-1 h-full rounded-lg text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap flex items-center justify-center touch-manipulation ${colorMode === 'bw' ? 'text-slate-900 dark:text-white' : 'text-slate-500 hover:text-slate-700'
-                    }`}
+                  className={`relative z-10 flex-1 h-full rounded-lg text-xs sm:text-[13px] font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap flex items-center justify-center touch-manipulation select-none ${
+                    colorMode === 'bw'
+                      ? 'text-zinc-900 dark:text-white'
+                      : 'text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200'
+                  }`}
                 >
                   {colorMode === 'bw' && (
                     <motion.div
                       layoutId="printColorPill"
                       transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                      className="absolute inset-0 rounded-lg bg-white dark:bg-zinc-700 shadow-xs"
+                      className="absolute inset-0 rounded-lg bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200/60 dark:border-white/10"
                     />
                   )}
                   <span className="relative z-10 whitespace-nowrap">B&W</span>
@@ -588,14 +593,17 @@ export default function SendComposer() {
                 <button
                   type="button"
                   onClick={() => { sound.toggleSnap(); setColorMode('color'); }}
-                  className={`relative z-10 flex-1 h-full rounded-lg text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap flex items-center justify-center touch-manipulation ${colorMode === 'color' ? 'text-slate-900 dark:text-white' : 'text-slate-500 hover:text-slate-700'
-                    }`}
+                  className={`relative z-10 flex-1 h-full rounded-lg text-xs sm:text-[13px] font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap flex items-center justify-center touch-manipulation select-none ${
+                    colorMode === 'color'
+                      ? 'text-zinc-900 dark:text-white'
+                      : 'text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200'
+                  }`}
                 >
                   {colorMode === 'color' && (
                     <motion.div
                       layoutId="printColorPill"
                       transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                      className="absolute inset-0 rounded-lg bg-white dark:bg-zinc-700 shadow-xs"
+                      className="absolute inset-0 rounded-lg bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200/60 dark:border-white/10"
                     />
                   )}
                   <span className="relative z-10 whitespace-nowrap">Color</span>
@@ -604,20 +612,25 @@ export default function SendComposer() {
             </div>
 
             {/* Sides / Duplex */}
-            <div>
-              <span className="text-[10px] font-semibold text-slate-500 dark:text-zinc-400 block mb-1">Sides</span>
-              <div className="relative flex p-0.5 rounded-xl bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 h-9.5 sm:h-10 items-center">
+            <div className="col-span-1">
+              <span className="text-[11px] font-semibold uppercase tracking-wider mb-1.5 opacity-75 text-zinc-600 dark:text-zinc-400 block select-none">
+                Sides
+              </span>
+              <div className="relative flex p-1 rounded-xl bg-zinc-100 dark:bg-zinc-900/90 border border-zinc-200/80 dark:border-white/10 h-11 items-center">
                 <button
                   type="button"
                   onClick={() => { sound.toggleSnap(); setSides('single'); }}
-                  className={`relative z-10 flex-1 h-full rounded-lg text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap flex items-center justify-center touch-manipulation ${sides === 'single' ? 'text-slate-900 dark:text-white' : 'text-slate-500 hover:text-slate-700'
-                    }`}
+                  className={`relative z-10 flex-1 h-full rounded-lg text-xs sm:text-[13px] font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap flex items-center justify-center touch-manipulation select-none ${
+                    sides === 'single'
+                      ? 'text-zinc-900 dark:text-white'
+                      : 'text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200'
+                  }`}
                 >
                   {sides === 'single' && (
                     <motion.div
                       layoutId="printSidesPill"
                       transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                      className="absolute inset-0 rounded-lg bg-white dark:bg-zinc-700 shadow-xs"
+                      className="absolute inset-0 rounded-lg bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200/60 dark:border-white/10"
                     />
                   )}
                   <span className="relative z-10 whitespace-nowrap">1-Sided</span>
@@ -625,14 +638,17 @@ export default function SendComposer() {
                 <button
                   type="button"
                   onClick={() => { sound.toggleSnap(); setSides('double'); }}
-                  className={`relative z-10 flex-1 h-full rounded-lg text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap flex items-center justify-center touch-manipulation ${sides === 'double' ? 'text-slate-900 dark:text-white' : 'text-slate-500 hover:text-slate-700'
-                    }`}
+                  className={`relative z-10 flex-1 h-full rounded-lg text-xs sm:text-[13px] font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap flex items-center justify-center touch-manipulation select-none ${
+                    sides === 'double'
+                      ? 'text-zinc-900 dark:text-white'
+                      : 'text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200'
+                  }`}
                 >
                   {sides === 'double' && (
                     <motion.div
                       layoutId="printSidesPill"
                       transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                      className="absolute inset-0 rounded-lg bg-white dark:bg-zinc-700 shadow-xs"
+                      className="absolute inset-0 rounded-lg bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200/60 dark:border-white/10"
                     />
                   )}
                   <span className="relative z-10 whitespace-nowrap">2-Sided</span>
@@ -642,24 +658,28 @@ export default function SendComposer() {
 
             {/* Copies Counter - Mobile: col-span-2, Desktop: col-span-1 */}
             <div className="col-span-2 sm:col-span-1">
-              <span className="text-[10px] font-semibold text-slate-500 dark:text-zinc-400 block mb-1">Copies</span>
-              <div className="flex items-center justify-between p-1 rounded-xl bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 h-9.5 sm:h-10">
+              <span className="text-[11px] font-semibold uppercase tracking-wider mb-1.5 opacity-75 text-zinc-600 dark:text-zinc-400 block select-none">
+                Copies
+              </span>
+              <div className="relative flex items-center justify-between p-1 rounded-xl bg-zinc-100 dark:bg-zinc-900/90 border border-zinc-200/80 dark:border-white/10 h-11">
                 <button
                   type="button"
                   onClick={() => { sound.toggleSnap(); setCopies(Math.max(1, copies - 1)); }}
-                  className="w-9 sm:w-8 h-full rounded-lg bg-white dark:bg-zinc-700 flex items-center justify-center text-slate-700 dark:text-zinc-200 shadow-xs cursor-pointer touch-manipulation hover:bg-slate-50 dark:hover:bg-zinc-600 transition-colors shrink-0"
+                  className="w-10 sm:w-9 h-full rounded-lg bg-white hover:bg-zinc-50 text-zinc-900 shadow-sm border border-zinc-200/60 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-white dark:border-white/10 flex items-center justify-center cursor-pointer touch-manipulation active:scale-95 transition-all shrink-0"
+                  aria-label="Decrease copies"
                 >
-                  <Minus className="w-3.5 h-3.5" />
+                  <Minus className="w-4 h-4 stroke-[2.5]" />
                 </button>
-                <span className="font-mono font-bold text-xs text-slate-900 dark:text-zinc-100 px-2 select-none">
+                <span className="font-mono font-bold text-sm tabular-nums text-zinc-900 dark:text-zinc-100 px-2 select-none">
                   {copies}
                 </span>
                 <button
                   type="button"
                   onClick={() => { sound.toggleSnap(); setCopies(Math.min(20, copies + 1)); }}
-                  className="w-9 sm:w-8 h-full rounded-lg bg-white dark:bg-zinc-700 flex items-center justify-center text-slate-700 dark:text-zinc-200 shadow-xs cursor-pointer touch-manipulation hover:bg-slate-50 dark:hover:bg-zinc-600 transition-colors shrink-0"
+                  className="w-10 sm:w-9 h-full rounded-lg bg-white hover:bg-zinc-50 text-zinc-900 shadow-sm border border-zinc-200/60 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-white dark:border-white/10 flex items-center justify-center cursor-pointer touch-manipulation active:scale-95 transition-all shrink-0"
+                  aria-label="Increase copies"
                 >
-                  <Plus className="w-3.5 h-3.5" />
+                  <Plus className="w-4 h-4 stroke-[2.5]" />
                 </button>
               </div>
             </div>
@@ -687,16 +707,16 @@ export default function SendComposer() {
           onClick={handleGenerate}
           whileHover={{ scale: 1.012, y: -1 }}
           whileTap={{ scale: 0.98 }}
-          className="relative overflow-hidden w-full h-11 sm:h-12 rounded-xl sm:rounded-2xl font-bold text-white text-xs sm:text-sm
+          className="relative overflow-hidden w-full h-12 rounded-xl font-bold text-zinc-950 text-sm sm:text-base
                      bg-emerald-500 hover:bg-emerald-400
-                     shadow-[0_8px_20px_rgba(16,185,129,0.28)]
-                     flex items-center justify-center gap-2 cursor-pointer transition-all group shrink-0 whitespace-nowrap"
+                     shadow-lg shadow-emerald-500/20
+                     flex items-center justify-center gap-2 cursor-pointer transition-all group shrink-0 whitespace-nowrap select-none"
         >
           {/* Shimmer light sweep */}
           <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/25 to-transparent pointer-events-none" />
-          <Sparkles className="w-4 h-4 text-emerald-100 relative z-10 shrink-0" />
+          <Sparkles className="w-4 h-4 text-zinc-950 relative z-10 shrink-0" />
           <span className="relative z-10">Generate 4-Digit PIN</span>
-          <ArrowRight className="w-4 h-4 relative z-10 group-hover:translate-x-0.5 transition-transform shrink-0" />
+          <ArrowRight className="w-4 h-4 text-zinc-950 relative z-10 group-hover:translate-x-0.5 transition-transform shrink-0" />
         </motion.button>
       </motion.div>
     </div>

@@ -25,7 +25,7 @@ function AtmosphericCanvas() {
 
   return (
     <div
-      className={`min-h-[100dvh] relative overflow-x-hidden font-sans transition-colors duration-200 selection:bg-emerald-500/30 flex flex-col items-center justify-between px-3 sm:px-6 pt-[max(env(safe-area-inset-top,0px),2.75rem)] sm:pt-6 pb-[max(env(safe-area-inset-bottom,0px),0.75rem)] sm:pb-4 ${
+      className={`min-h-[100dvh] relative overflow-x-hidden font-sans transition-colors duration-200 selection:bg-emerald-500/30 flex flex-col items-center justify-between px-3 sm:px-6 pt-[max(env(safe-area-inset-top,0px),0.75rem)] sm:pt-6 pb-[max(env(safe-area-inset-bottom,0px),0.75rem)] sm:pb-4 ${
         isDark ? 'bg-[#09090B] text-zinc-100' : 'bg-[#F8F9FA] text-slate-900'
       }`}
     >
