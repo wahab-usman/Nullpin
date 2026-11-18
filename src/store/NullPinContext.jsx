@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { sound } from '../utils/sound';
 import { createDemoLabReportPdfBlob, cleanupPrewarmedFrames } from '../utils/ramPrinter';
 import { DEMO_PRESETS } from '../utils/demoPresets';
@@ -14,6 +14,7 @@ import {
   fetchDropFromSupabase,
   burnDropInSupabase,
   subscribeToSupabaseDrop,
+  cleanupExpiredSupabaseDrops,
   cleanupExpiredDrops,
   generateCollisionFreePin
 } from '../utils/supabaseService';
@@ -45,7 +46,12 @@ function resolveFileType(file) {
   if (name.endsWith('.jpg') || name.endsWith('.jpeg')) return 'image/jpeg';
   if (name.endsWith('.webp')) return 'image/webp';
   if (name.endsWith('.txt')) return 'text/plain';
-  if (name.endsWith('.zip')) return 'application/zip';
+  if (/\.(py|js|jsx|ts|tsx|html|htm|css|cpp|c|h|java|cs|php|sql|json|xml|md|log|csv|env|sh|yaml|yml)$/i.test(name)) {
+    return 'text/plain';
+  }
+  if (/\.(zip|rar|7z|tar|gz)$/i.test(name)) {
+    return 'application/zip';
+  }
   return file?.type || 'application/octet-stream';
 }
 
@@ -101,6 +107,39 @@ export function NullPinProvider({ children }) {
     message: '',
   });
 
+  // Rate limiting states for PIN entry brute-force defense (5 failed attempts -> 30s cooldown)
+  const [cooldownSeconds, setCooldownSeconds] = useState(() => {
+    if (typeof window === 'undefined') return 0;
+    try {
+      const cooldownUntil = parseInt(sessionStorage.getItem('nullpin_cooldown_until') || '0', 10);
+      if (cooldownUntil && cooldownUntil > Date.now()) {
+        return Math.ceil((cooldownUntil - Date.now()) / 1000);
+      }
+    } catch (e) {}
+    return 0;
+  });
+
+  // Mutex lock to prevent infinite burn / reset loops per PIN
+  const burningPinsRef = useRef(new Set());
+
+  // Cooldown countdown tick
+  useEffect(() => {
+    if (cooldownSeconds <= 0) return;
+    const interval = setInterval(() => {
+      setCooldownSeconds((prev) => {
+        if (prev <= 1) {
+          try {
+            sessionStorage.removeItem('nullpin_cooldown_until');
+            sessionStorage.removeItem('nullpin_failed_attempts');
+          } catch (e) {}
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [cooldownSeconds]);
+
   // 5-Minute countdown tick
   useEffect(() => {
     let interval = null;
@@ -121,7 +160,7 @@ export function NullPinProvider({ children }) {
   // Silently run 5-minute garbage collection when app loads
   useEffect(() => {
     if (isSupabaseConfigured()) {
-      cleanupExpiredDrops().catch(() => {});
+      cleanupExpiredSupabaseDrops().catch(() => {});
     }
   }, []);
 
@@ -225,7 +264,7 @@ export function NullPinProvider({ children }) {
 
     // Upload to Supabase cloud storage & database with live telemetry
     if (isSupabaseConfigured()) {
-      cleanupExpiredDrops().catch(() => {});
+      cleanupExpiredSupabaseDrops().catch(() => {});
       uploadDropToSupabase(newDrop, (progress) => {
         setUploadState(progress);
       });
@@ -261,28 +300,20 @@ export function NullPinProvider({ children }) {
 
   // Lookup & Unlock PIN (Works in current tab AND across tabs/windows)
   const unlockWithPin = useCallback(async (pin) => {
-    const searchPin = String(pin).trim();
-
-    // 1. Check if matches active drop in this tab's memory (Single-Claim: only allow if waiting)
-    if (activeDrop && String(activeDrop.pin) === searchPin && activeDrop.status === 'waiting') {
-      sound.unlockChime();
-      const updated = { ...activeDrop, status: 'opened' };
-      const remaining = calculateRemainingSeconds(updated);
-      setTimeLeft(remaining);
-      setIsTimerActive(true);
-      setActiveDrop(updated);
-      setUnlockedDrop(updated);
-      setCurrentView('studio');
-      setPinError(false);
-      claimDropRecord(searchPin);
-      return true;
+    // 0. Brute-force bot rate limiting defense (5 failed attempts -> 30s cooldown)
+    if (cooldownSeconds > 0) {
+      return false;
     }
 
-    // 2. Cross-Tab Lookup: Check if another localhost tab/window created this PIN (Single-Claim: only allow if waiting)
-    const crossTabDrop = await getDropRecord(searchPin);
-    if (crossTabDrop && crossTabDrop.status === 'waiting') {
+    const searchPin = String(pin).trim();
+
+    const handleSuccessfulUnlock = (openedDrop) => {
+      try {
+        sessionStorage.removeItem('nullpin_failed_attempts');
+        sessionStorage.removeItem('nullpin_cooldown_until');
+      } catch (e) {}
+      setCooldownSeconds(0);
       sound.unlockChime();
-      const openedDrop = { ...crossTabDrop, status: 'opened' };
       const remaining = calculateRemainingSeconds(openedDrop);
       setTimeLeft(remaining);
       setIsTimerActive(true);
@@ -292,28 +323,34 @@ export function NullPinProvider({ children }) {
       setPinError(false);
       claimDropRecord(searchPin);
       return true;
+    };
+
+    // 1. Check if matches active drop in this tab's memory (Single-Claim: only allow if waiting)
+    if (activeDrop && String(activeDrop.pin) === searchPin && activeDrop.status === 'waiting') {
+      return handleSuccessfulUnlock({ ...activeDrop, status: 'opened' });
+    }
+
+    // 2. Cross-Tab Lookup: Check if another localhost tab/window created this PIN (Single-Claim: only allow if waiting)
+    const crossTabDrop = await getDropRecord(searchPin);
+    if (crossTabDrop && crossTabDrop.status === 'waiting') {
+      return handleSuccessfulUnlock({ ...crossTabDrop, status: 'opened' });
     }
 
     // 3. Supabase Cloud Lookup: Check live Supabase database & storage bucket
     if (isSupabaseConfigured()) {
       const cloudDrop = await fetchDropFromSupabase(searchPin);
       if (cloudDrop && (cloudDrop.status === 'waiting' || cloudDrop.status === 'synced')) {
-        sound.unlockChime();
-        const openedDrop = { ...cloudDrop, status: 'opened' };
-        const remaining = calculateRemainingSeconds(openedDrop);
-        setTimeLeft(remaining);
-        setIsTimerActive(true);
-        setActiveDrop(openedDrop);
-        setUnlockedDrop(openedDrop);
-        setCurrentView('studio');
-        setPinError(false);
-        claimDropRecord(searchPin);
-        return true;
+        return handleSuccessfulUnlock({ ...cloudDrop, status: 'opened' });
       }
     }
 
     // 4. Default demo fallback: 7492
     if (searchPin === '7492') {
+      try {
+        sessionStorage.removeItem('nullpin_failed_attempts');
+        sessionStorage.removeItem('nullpin_cooldown_until');
+      } catch (e) {}
+      setCooldownSeconds(0);
       sound.unlockChime();
       const demoBlob = createDemoLabReportPdfBlob();
       const demoBlobUrl = URL.createObjectURL(demoBlob);
@@ -354,7 +391,19 @@ export function NullPinProvider({ children }) {
       return true;
     }
 
-    // Invalid PIN feedback
+    // Invalid PIN feedback: Track consecutive failed attempts in sessionStorage
+    try {
+      const currentAttempts = parseInt(sessionStorage.getItem('nullpin_failed_attempts') || '0', 10) + 1;
+      if (currentAttempts >= 5) {
+        const cooldownUntil = Date.now() + 30 * 1000;
+        sessionStorage.setItem('nullpin_cooldown_until', String(cooldownUntil));
+        sessionStorage.setItem('nullpin_failed_attempts', String(currentAttempts));
+        setCooldownSeconds(30);
+      } else {
+        sessionStorage.setItem('nullpin_failed_attempts', String(currentAttempts));
+      }
+    } catch (e) {}
+
     sound.vaporize();
     setPinError(true);
     setTimeout(() => {
@@ -362,20 +411,32 @@ export function NullPinProvider({ children }) {
       setPinError(false);
     }, 900);
     return false;
-  }, [activeDrop]);
+  }, [activeDrop, cooldownSeconds]);
 
   // Trigger vaporize / burn animation & reset
   const triggerVaporize = useCallback((fromRemote = false) => {
+    const pinToBurn = activeDrop?.pin || unlockedDrop?.pin;
+    const pinKey = pinToBurn ? String(pinToBurn).trim() : null;
+
+    if (pinKey) {
+      if (burningPinsRef.current.has(pinKey)) {
+        return; // Already burning or burned — idempotent mutex
+      }
+      burningPinsRef.current.add(pinKey);
+      setTimeout(() => {
+        burningPinsRef.current.delete(pinKey);
+      }, 60000);
+    }
+
     cleanupPrewarmedFrames();
     if (!fromRemote) {
       sound.vaporize();
     }
 
-    const pinToBurn = activeDrop?.pin || unlockedDrop?.pin;
-    if (pinToBurn && !fromRemote) {
-      burnDropRecord(pinToBurn);
+    if (pinKey && !fromRemote) {
+      burnDropRecord(pinKey);
       if (isSupabaseConfigured()) {
-        burnDropInSupabase(pinToBurn);
+        burnDropInSupabase(pinKey);
       }
     }
 
@@ -438,14 +499,16 @@ export function NullPinProvider({ children }) {
     channel.onmessage = (e) => {
       const { type, pin, status } = e.data || {};
       if (!pin) return;
+      const pinKey = String(pin).trim();
 
       if (type === 'DROP_BURNED') {
-        if ((activeDrop && String(activeDrop.pin) === String(pin)) || 
-            (unlockedDrop && String(unlockedDrop.pin) === String(pin))) {
+        if (burningPinsRef.current.has(pinKey)) return;
+        if ((activeDrop && String(activeDrop.pin) === pinKey) || 
+            (unlockedDrop && String(unlockedDrop.pin) === pinKey)) {
           triggerVaporize(true);
         }
       } else if (type === 'DROP_STATUS_CHANGED') {
-        if (activeDrop && String(activeDrop.pin) === String(pin)) {
+        if (activeDrop && String(activeDrop.pin) === pinKey) {
           setActiveDrop((prev) => (prev ? { ...prev, status } : null));
         }
       }
@@ -461,9 +524,11 @@ export function NullPinProvider({ children }) {
     if (!isSupabaseConfigured()) return;
     const targetPin = activeDrop?.pin || unlockedDrop?.pin;
     if (!targetPin) return;
+    const pinKey = String(targetPin).trim();
 
-    const unsubscribe = subscribeToSupabaseDrop(targetPin, (updatedRecord) => {
+    const unsubscribe = subscribeToSupabaseDrop(pinKey, (updatedRecord) => {
       if (updatedRecord.status === 'burned') {
+        if (burningPinsRef.current.has(pinKey)) return;
         triggerVaporize(true);
       } else if (updatedRecord.status === 'opened') {
         setActiveDrop((prev) => (prev ? { ...prev, status: 'opened' } : null));
@@ -502,6 +567,7 @@ export function NullPinProvider({ children }) {
         pinDigits,
         setPinDigits,
         pinError,
+        cooldownSeconds,
         isTimerActive,
         soundEnabled,
         uploadState,

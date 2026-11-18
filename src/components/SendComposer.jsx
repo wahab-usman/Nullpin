@@ -87,10 +87,7 @@ export default function SendComposer() {
     const videoFiles = filesArray.filter(isVideoFile);
     if (videoFiles.length > 0) {
       sound.vaporize();
-      const sampleNames = videoFiles.map((v) => v.name).slice(0, 2).join(', ');
-      setDropError(
-        `Video files are not allowed (${sampleNames}${videoFiles.length > 2 ? '...' : ''}). Only documents and images can be printed.`
-      );
+      setDropError('Videos are not allowed in NullPin.');
       setTimeout(() => setDropError(''), 4500);
     }
 
@@ -211,14 +208,15 @@ export default function SendComposer() {
     if (f) {
       if (isVideoFile(f)) {
         sound.vaporize();
-        setDropError('Video files are not allowed. Please upload an image (PNG, JPG) for the ID card.');
+        setDropError('Videos are not allowed in NullPin.');
         setTimeout(() => setDropError(''), 4000);
         return;
       }
       // Strictly enforce image files for ID card
-      if (f.type && !f.type.startsWith('image/')) {
+      const isImg = (f.type && f.type.toLowerCase().startsWith('image/')) || /\.(jpe?g|png|webp|bmp|svg)$/i.test(f.name || '');
+      if (!isImg) {
         sound.vaporize();
-        setDropError('Please upload an image file (PNG, JPG) for the ID card.');
+        setDropError('Please upload an image file (PNG, JPG, WebP) for the ID card.');
         setTimeout(() => setDropError(''), 4000);
         return;
       }
@@ -388,10 +386,10 @@ export default function SendComposer() {
                   <Upload className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600 dark:text-emerald-400" />
                 </motion.div>
                 <p className="text-xs sm:text-sm font-bold text-slate-800 dark:text-zinc-200 text-center whitespace-nowrap">
-                  Drop Documents, Images, or ZIP
+                  Drop Documents, Code, Images, or ZIP
                 </p>
                 <p className="text-[10px] sm:text-[11px] text-slate-400 dark:text-zinc-500 mt-0.5 text-center font-mono whitespace-nowrap">
-                  Multi-file & ZIP • Strictly No Videos
+                  Multi-file, Code & ZIP • Strictly No Videos
                 </p>
 
                 <div className="mt-2 sm:mt-2.5 inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full bg-slate-100/80 dark:bg-zinc-800/60 text-[10px] sm:text-[11px] font-mono text-slate-500 dark:text-zinc-400 whitespace-nowrap">
@@ -495,7 +493,6 @@ export default function SendComposer() {
               multiple
               onChange={handleFileInput}
               className="hidden"
-              accept=".pdf,.docx,.doc,.txt,.png,.jpg,.jpeg,.xlsx,.xls,.pptx,.ppt,.zip"
             />
           </div>
         )}

@@ -222,18 +222,58 @@ export default function PrintStudio() {
     }, 800);
   }, [autoBurnTimer, triggerVaporize]);
 
+  // Scope 5-second post-print countdown strictly to activeDrop?.pin
+  const countdownPinRef = useRef(null);
+
+  // Clear countdown immediately on drop change or unmount
+  useEffect(() => {
+    setPostPrintCountdown(null);
+    countdownPinRef.current = null;
+    return () => {
+      setPostPrintCountdown(null);
+      countdownPinRef.current = null;
+    };
+  }, [drop?.pin]);
+
   // 5-Second countdown timer after print completion before automatic vaporize & home redirect
   useEffect(() => {
-    if (postPrintCountdown === null) return;
-    if (postPrintCountdown <= 0) {
-      handleVaporizeNow();
+    if (postPrintCountdown === null) {
+      countdownPinRef.current = null;
       return;
     }
-    const timer = setTimeout(() => {
-      setPostPrintCountdown((prev) => (prev > 0 ? prev - 1 : 0));
+
+    const currentPin = drop?.pin;
+    if (!currentPin) return;
+    countdownPinRef.current = currentPin;
+
+    if (postPrintCountdown <= 0) {
+      if (countdownPinRef.current === drop?.pin) {
+        handleVaporizeNow();
+      }
+      return;
+    }
+
+    const intervalId = setInterval(() => {
+      // Guard against PIN changing mid-countdown
+      if (countdownPinRef.current !== drop?.pin) {
+        clearInterval(intervalId);
+        setPostPrintCountdown(null);
+        return;
+      }
+      setPostPrintCountdown((prev) => {
+        if (prev === null) return null;
+        if (prev <= 1) {
+          clearInterval(intervalId);
+          return 0;
+        }
+        return prev - 1;
+      });
     }, 1000);
-    return () => clearTimeout(timer);
-  }, [postPrintCountdown, handleVaporizeNow]);
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [postPrintCountdown, drop?.pin, handleVaporizeNow]);
 
   // Print individual file from manifest
   const handlePrintSingleFile = useCallback((fileObj, fileIndex = 0) => {

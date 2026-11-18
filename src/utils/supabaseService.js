@@ -94,7 +94,7 @@ export async function compressImageBlobIfNeeded(blob, maxDim = 2000, quality = 0
  * deletes all associated storage files (files_meta, front_path, back_path)
  * from the nullpin-drops bucket and deletes expired rows from public.drops.
  */
-export async function cleanupExpiredDrops() {
+export async function cleanupExpiredSupabaseDrops() {
   if (!isSupabaseConfigured() || !supabase) return;
 
   try {
@@ -153,6 +153,9 @@ export async function cleanupExpiredDrops() {
     console.warn('[NullPin GC] Background cleanup notice:', err);
   }
 }
+
+// Backward compatibility alias
+export const cleanupExpiredDrops = cleanupExpiredSupabaseDrops;
 
 /**
  * Generates a collision-free 4-digit PIN (1000-9999).
@@ -522,15 +525,23 @@ export async function fetchDropFromSupabase(pin) {
   }
 }
 
+// Mutex guard to prevent duplicate / looping burn operations per PIN
+const activeSupabaseBurns = new Set();
+
 /**
  * Permanently deletes storage files and updates status to 'burned'.
  */
 export async function burnDropInSupabase(pin) {
   if (!isSupabaseConfigured() || !supabase) return;
 
-  try {
-    const searchPin = String(pin).trim();
+  const searchPin = String(pin).trim();
+  if (activeSupabaseBurns.has(searchPin)) {
+    return; // Burn already in progress or completed
+  }
+  activeSupabaseBurns.add(searchPin);
+  setTimeout(() => activeSupabaseBurns.delete(searchPin), 30000);
 
+  try {
     // 1. Broadcast DROP_BURNED immediately to all listening devices (e.g. sender on Laptop)
     try {
       const broadcastChannel = supabase.channel(`nullpin-sync-${searchPin}`);
@@ -580,23 +591,46 @@ export function subscribeToSupabaseDrop(pin, onStatusChange) {
 
   const searchPin = String(pin).trim();
   let isCleanedUp = false;
+  let pollInterval = null;
+  let channel = null;
+
+  const cleanup = () => {
+    if (isCleanedUp) return;
+    isCleanedUp = true;
+    if (pollInterval) {
+      clearInterval(pollInterval);
+      pollInterval = null;
+    }
+    if (channel) {
+      try {
+        supabase.removeChannel(channel);
+      } catch (e) {}
+      channel = null;
+    }
+  };
+
+  const notifyBurned = () => {
+    cleanup();
+    if (typeof onStatusChange === 'function') {
+      onStatusChange({ status: 'burned' });
+    }
+  };
 
   // 1. Broadcast channel for instantaneous cross-device burn notification
-  const channel = supabase
+  channel = supabase
     .channel(`nullpin-sync-${searchPin}`)
     .on('broadcast', { event: 'DROP_BURNED' }, () => {
-      if (typeof onStatusChange === 'function') {
-        onStatusChange({ status: 'burned' });
-      }
+      notifyBurned();
     })
     .subscribe();
 
   // 2. High-reliability 2-second storage-existence polling for cross-device burn sync
   // Monitors if files in Supabase Storage bucket under `${searchPin}/` still exist.
-  // While drop is in active print session, storage files exist.
-  // When burnDropInSupabase empties the storage folder, trigger 'burned'.
+  // Safe Poller Lifecycle: Only triggers onBurned() after confirming the drop was uploaded
+  // and at least 4 seconds have passed since subscription so it never misfires during upload.
   let hadStorageFiles = false;
-  const pollInterval = setInterval(async () => {
+  const startTime = Date.now();
+  pollInterval = setInterval(async () => {
     if (isCleanedUp) return;
     try {
       const { data: files, error } = await supabase.storage
@@ -607,20 +641,13 @@ export function subscribeToSupabaseDrop(pin, onStatusChange) {
 
       if (!error && Array.isArray(files) && files.length > 0) {
         hadStorageFiles = true;
-      } else if (hadStorageFiles && Array.isArray(files) && files.length === 0) {
-        clearInterval(pollInterval);
-        if (typeof onStatusChange === 'function') {
-          onStatusChange({ status: 'burned' });
-        }
+      } else if (hadStorageFiles && Array.isArray(files) && files.length === 0 && (Date.now() - startTime >= 4000)) {
+        notifyBurned();
       }
     } catch (pollErr) {
       // Ignore transient network errors
     }
   }, 2000);
 
-  return () => {
-    isCleanedUp = true;
-    clearInterval(pollInterval);
-    supabase.removeChannel(channel);
-  };
+  return cleanup;
 }

@@ -5,18 +5,20 @@ import { useNullPin } from '../store/NullPinContext';
 import { sound } from '../utils/sound';
 
 export default function KineticPinKeypad() {
-  const { pinDigits, setPinDigits, pinError, unlockWithPin } = useNullPin();
+  const { pinDigits, setPinDigits, pinError, cooldownSeconds, unlockWithPin } = useNullPin();
   const [isUnlocking, setIsUnlocking] = useState(false);
   const hiddenInputRef = useRef(null);
 
   // Focus input automatically on mount
   useEffect(() => {
-    hiddenInputRef.current?.focus();
-  }, []);
+    if (!(cooldownSeconds > 0)) {
+      hiddenInputRef.current?.focus();
+    }
+  }, [cooldownSeconds]);
 
   // Update digits from string
   const handleInputChange = (e) => {
-    if (isUnlocking) return;
+    if (isUnlocking || cooldownSeconds > 0) return;
     const rawVal = e.target.value.replace(/[^0-9]/g, '').slice(0, 4);
     sound.keyPress();
 
@@ -43,7 +45,7 @@ export default function KineticPinKeypad() {
   };
 
   const handleKeyDown = (e) => {
-    if (isUnlocking) {
+    if (isUnlocking || cooldownSeconds > 0) {
       e.preventDefault();
       return;
     }
@@ -54,7 +56,7 @@ export default function KineticPinKeypad() {
 
   // Click card to focus input
   const handleBoxClick = () => {
-    if (!isUnlocking) {
+    if (!isUnlocking && !(cooldownSeconds > 0)) {
       hiddenInputRef.current?.focus();
     }
   };
@@ -74,7 +76,7 @@ export default function KineticPinKeypad() {
         value={currentPinStr}
         onChange={handleInputChange}
         onKeyDown={handleKeyDown}
-        disabled={isUnlocking}
+        disabled={isUnlocking || cooldownSeconds > 0}
         className="sr-only"
         style={{ fontSize: '16px' }}
         autoFocus
@@ -98,7 +100,9 @@ export default function KineticPinKeypad() {
         onClick={handleBoxClick}
         className={`w-full max-w-[500px] p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl backdrop-blur-xl transition-all duration-200 cursor-pointer select-none
           ${
-            pinError
+            cooldownSeconds > 0
+              ? 'border-2 border-amber-500/80 bg-amber-500/[0.04]'
+              : pinError
               ? 'border-2 border-rose-500/80 bg-rose-500/[0.04]'
               : isUnlocking
               ? 'border-2 border-emerald-500/60 bg-emerald-500/[0.02] shadow-[0_20px_50px_rgba(16,185,129,0.15)]'
@@ -164,7 +168,18 @@ export default function KineticPinKeypad() {
         {/* Status text, Loading state, or Error */}
         <div className="h-6 mb-2 flex items-center justify-center text-center">
           <AnimatePresence mode="wait">
-            {isUnlocking ? (
+            {cooldownSeconds > 0 ? (
+              <motion.div
+                key="cooldown"
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                className="flex items-center gap-1.5 text-xs font-bold text-amber-500"
+              >
+                <AlertCircle className="w-3.5 h-3.5 text-amber-500" />
+                <span>Too many failed attempts. Try again in {cooldownSeconds}s</span>
+              </motion.div>
+            ) : isUnlocking ? (
               <motion.div
                 key="loading"
                 initial={{ opacity: 0, y: -2 }}

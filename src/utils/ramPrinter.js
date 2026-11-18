@@ -245,11 +245,52 @@ function evictExcessPrewarmedFrames(excludeKey = null) {
   }
 }
 
+// Registry of active focus polling intervals, fallback timers, and watchdog timeouts
+const activePrinterTimers = new Set();
+
+export function registerPrinterInterval(fn, ms) {
+  const id = setInterval(fn, ms);
+  const clear = () => clearInterval(id);
+  activePrinterTimers.add(clear);
+  return {
+    id,
+    clear: () => {
+      clear();
+      activePrinterTimers.delete(clear);
+    }
+  };
+}
+
+export function registerPrinterTimeout(fn, ms) {
+  let id = null;
+  const clear = () => clearTimeout(id);
+  id = setTimeout(() => {
+    activePrinterTimers.delete(clear);
+    fn();
+  }, ms);
+  activePrinterTimers.add(clear);
+  return {
+    id,
+    clear: () => {
+      clear();
+      activePrinterTimers.delete(clear);
+    }
+  };
+}
+
 /**
  * Destroys all pre-warmed iframes from the DOM and clears the cache
  */
 export function cleanupPrewarmedFrames() {
   inFlightPrewarms.clear();
+
+  // Clear all registered active intervals & timeouts
+  for (const clearFn of activePrinterTimers) {
+    try { clearFn(); } catch (e) {}
+  }
+  activePrinterTimers.clear();
+  isGlobalPrintLocked = false;
+
   for (const [, record] of prewarmedFrames.entries()) {
     try {
       if (record?.iframe && record.iframe.parentNode) {
@@ -638,19 +679,19 @@ export async function printFromRam(dropData, onPrintComplete, onDialogOpened) {
     isGlobalPrintLocked = false;
 
     if (focusPollInterval) {
-      clearInterval(focusPollInterval);
+      focusPollInterval.clear();
       focusPollInterval = null;
     }
     if (focusDelayTimer) {
-      clearTimeout(focusDelayTimer);
+      focusDelayTimer.clear();
       focusDelayTimer = null;
     }
     if (mobileFallbackTimer) {
-      clearTimeout(mobileFallbackTimer);
+      mobileFallbackTimer.clear();
       mobileFallbackTimer = null;
     }
     if (globalHardSafetyTimer) {
-      clearTimeout(globalHardSafetyTimer);
+      globalHardSafetyTimer.clear();
       globalHardSafetyTimer = null;
     }
 
@@ -677,22 +718,22 @@ export async function printFromRam(dropData, onPrintComplete, onDialogOpened) {
   const handleInteractionReturn = () => {
     // If the print preview opened and caused blur, any subsequent user interaction on the tab confirms the dialog closed
     if (printDialogSawBlur) {
-      setTimeout(finishPrint, 50);
+      registerPrinterTimeout(finishPrint, 50);
     }
   };
 
   const handleFocusReturn = () => {
-    setTimeout(finishPrint, 50);
+    registerPrinterTimeout(finishPrint, 50);
   };
 
   const handleAfterPrint = () => {
     // afterprint fired - native print dialog was submitted, saved, or dismissed
-    setTimeout(finishPrint, 50);
+    registerPrinterTimeout(finishPrint, 50);
   };
 
   const handleVisibilityReturn = () => {
     if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
-      setTimeout(finishPrint, 150);
+      registerPrinterTimeout(finishPrint, 150);
     }
   };
 
@@ -715,20 +756,21 @@ export async function printFromRam(dropData, onPrintComplete, onDialogOpened) {
     // document.hasFocus() becomes false. When the user prints or cancels, the modal
     // closes and document.hasFocus() immediately transitions back to true!
     if (typeof document !== 'undefined') {
-      focusPollInterval = setInterval(() => {
+      const pollHandle = registerPrinterInterval(() => {
         const hasFocus = typeof document.hasFocus === 'function' ? document.hasFocus() : true;
         if (!hasFocus) {
           printDialogSawBlur = true;
         } else if (printDialogSawBlur && hasFocus) {
-          clearInterval(focusPollInterval);
+          pollHandle.clear();
           focusPollInterval = null;
-          setTimeout(finishPrint, 50);
+          registerPrinterTimeout(finishPrint, 50);
         }
       }, 150);
+      focusPollInterval = pollHandle;
     }
 
     // 2. Attach focus listeners to BOTH window AND iframe.contentWindow after a 500ms delay from .print()
-    focusDelayTimer = setTimeout(() => {
+    focusDelayTimer = registerPrinterTimeout(() => {
       if (isCompleted) return;
 
       try {
@@ -751,7 +793,7 @@ export async function printFromRam(dropData, onPrintComplete, onDialogOpened) {
 
     // Mobile completion guard: mobile browsers often swallow afterprint or focus events
     if (isMobile) {
-      mobileFallbackTimer = setTimeout(() => {
+      mobileFallbackTimer = registerPrinterTimeout(() => {
         console.log('[NullPin RAM Print] Mobile fallback safety release triggered finishPrint');
         finishPrint();
       }, 1500);
@@ -759,7 +801,7 @@ export async function printFromRam(dropData, onPrintComplete, onDialogOpened) {
   };
 
   // Global safety watchdog: ensures UI is not stuck permanently if OS swallows all events
-  globalHardSafetyTimer = setTimeout(() => {
+  globalHardSafetyTimer = registerPrinterTimeout(() => {
     if (!isCompleted) {
       console.warn('[NullPin RAM Print] Global safety timeout reached, releasing print lock.');
       finishPrint();
@@ -781,7 +823,10 @@ export async function printFromRam(dropData, onPrintComplete, onDialogOpened) {
   const isDocx = fileName.endsWith('.docx') || fileType.includes('wordprocessingml');
   const isDoc = fileName.endsWith('.doc') || fileType.includes('msword');
   const isImage = fileType.startsWith('image/') || /\.(png|jpe?g|webp|svg|gif|bmp)$/i.test(fileName);
-  const isText = fileType.startsWith('text/') || /\.(txt|csv|json|md|log|js|html|py)$/i.test(fileName);
+  const isCodeOrText =
+    fileType.startsWith('text/') ||
+    /\.(txt|csv|json|md|log|js|jsx|ts|tsx|py|cpp|c|h|java|cs|php|sql|xml|html|htm|css|sh|bat|cmd|yaml|yml|rs|go|rb|swift|kt|kts|env)$/i.test(fileName);
+  const isText = isCodeOrText;
 
   // FAST ZERO-LATENCY PATH: Check if a pre-warmed iframe is already mounted in DOM
   const fileKey = dropData.file?.id || dropData.file?.name || (dropData.mode === 'idcard' ? 'idcard' : 'primary');
@@ -1159,9 +1204,10 @@ export async function printFromRam(dropData, onPrintComplete, onDialogOpened) {
   }
 
   // ==============================================================
-  // CASE E: Plain Text Files (.txt, .md, .csv, code)
+  // CASE E: Plain Text & Code Files (.txt, .md, .csv, .py, .js, .html, student assignments, etc.)
+  // Safe Code Printing Without XSS: Renders as HTML-escaped plain text inside monospace <pre>
   // ==============================================================
-  if (isText || dropData.textContent) {
+  if (isCodeOrText || isText || dropData.textContent) {
     let textContent = dropData.textContent || '';
     if (!textContent && dropData.rawFile instanceof Blob) {
       try {

@@ -249,12 +249,21 @@ export async function claimDropRecord(pin) {
   return markDropStatus(pin, 'claimed');
 }
 
+// Mutex guard to prevent duplicate / looping burn operations per PIN
+const activeCrossTabBurns = new Set();
+
 /**
  * Permanently purges a drop from browser memory across all tabs
  */
 export async function burnDropRecord(pin) {
   try {
     const searchPin = String(pin).trim();
+    if (activeCrossTabBurns.has(searchPin)) {
+      return; // Already burning or burned
+    }
+    activeCrossTabBurns.add(searchPin);
+    setTimeout(() => activeCrossTabBurns.delete(searchPin), 30000);
+
     revokeUrlsForPin(searchPin);
     const db = await openDB();
     const tx = db.transaction(STORE_NAME, 'readwrite');
