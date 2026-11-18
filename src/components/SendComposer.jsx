@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   FileText, CreditCard, Upload, Minus, Plus,
   Sparkles, ArrowRight, X, AlertCircle, PlusCircle, Trash2, Files, Image as ImageIcon,
-  FileArchive
+  FileArchive, Camera
 } from 'lucide-react';
 import { useNullPin } from '../store/NullPinContext';
 import { sound } from '../utils/sound';
@@ -52,6 +52,15 @@ export default function SendComposer() {
   // Multi-file state for Document mode
   const [filesList, setFilesList] = useState([]);
   const fileInputRef = useRef(null);
+  const docCameraInputRef = useRef(null);
+
+  // Strict Mobile-Only detection: activates camera controls ONLY on phones, never on PC/Desktop
+  const isMobileDevice =
+    typeof window !== 'undefined' &&
+    (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || Boolean(window.Capacitor?.isNativePlatform?.()));
+
+  const isCapacitorNative =
+    typeof window !== 'undefined' && Boolean(window.Capacitor?.isNativePlatform?.());
 
   // ID Card states
   const [frontFile, setFrontFile] = useState(null);
@@ -60,6 +69,8 @@ export default function SendComposer() {
   const [backBlobUrl, setBackBlobUrl] = useState(null);
   const [frontPreview, setFrontPreview] = useState(null);
   const [backPreview, setBackPreview] = useState(null);
+  const frontCameraInputRef = useRef(null);
+  const backCameraInputRef = useRef(null);
 
   // Validation feedback
   const [dropError, setDropError] = useState('');
@@ -202,11 +213,18 @@ export default function SendComposer() {
 
   // ID Card upload handlers
   const handleCardUpload = (e, side) => {
-    const f = e.target.files[0];
+    const f = e.target.files?.[0];
     if (f) {
       if (isVideoFile(f)) {
         sound.vaporize();
         setDropError('Video files are not allowed. Please upload an image (PNG, JPG) for the ID card.');
+        setTimeout(() => setDropError(''), 4000);
+        return;
+      }
+      // Strictly enforce image files for ID card
+      if (f.type && !f.type.startsWith('image/')) {
+        sound.vaporize();
+        setDropError('Please upload an image file (PNG, JPG) for the ID card.');
         setTimeout(() => setDropError(''), 4000);
         return;
       }
@@ -229,6 +247,7 @@ export default function SendComposer() {
         setBackPreview(objectUrl);
       }
     }
+    e.target.value = '';
   };
 
   const handleClearCardSide = (e, side) => {
@@ -381,8 +400,25 @@ export default function SendComposer() {
                   Multi-file & ZIP • Strictly No Videos
                 </p>
 
-                <div className="mt-2 sm:mt-2.5 inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full bg-slate-100/80 dark:bg-zinc-800/60 text-[10px] sm:text-[11px] font-mono text-slate-500 dark:text-zinc-400 whitespace-nowrap">
-                  <span>Click or drag to select files</span>
+                <div className="mt-2 sm:mt-2.5 inline-flex flex-wrap items-center justify-center gap-1.5">
+                  <div className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full bg-slate-100/80 dark:bg-zinc-800/60 text-[10px] sm:text-[11px] font-mono text-slate-500 dark:text-zinc-400 whitespace-nowrap">
+                    <span>Click or drag to select files</span>
+                  </div>
+
+                  {isCapacitorNative && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        docCameraInputRef.current?.click();
+                      }}
+                      className="inline-flex items-center gap-1 px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-[10px] sm:text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 transition-colors cursor-pointer touch-manipulation"
+                    >
+                      <Camera className="w-3 h-3" />
+                      <span>📷 Camera</span>
+                    </button>
+                  )}
                 </div>
               </div>
             ) : (
@@ -460,14 +496,31 @@ export default function SendComposer() {
 
                 {/* Add more files row */}
                 <div className="pt-2 flex items-center justify-between border-t border-slate-200/60 dark:border-zinc-800">
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-xs font-semibold text-slate-700 dark:text-zinc-300 transition-colors cursor-pointer"
-                  >
-                    <PlusCircle className="w-3.5 h-3.5 text-emerald-500" />
-                    <span>+ Add More Files / ZIP</span>
-                  </button>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-xs font-semibold text-slate-700 dark:text-zinc-300 transition-colors cursor-pointer"
+                    >
+                      <PlusCircle className="w-3.5 h-3.5 text-emerald-500" />
+                      <span>+ Add More Files / ZIP</span>
+                    </button>
+
+                    {isCapacitorNative && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          docCameraInputRef.current?.click();
+                        }}
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-xs font-semibold text-emerald-600 dark:text-emerald-400 transition-colors cursor-pointer touch-manipulation"
+                      >
+                        <Camera className="w-3.5 h-3.5" />
+                        <span>+ Camera</span>
+                      </button>
+                    )}
+                  </div>
                   <span className="text-[10px] font-mono text-slate-400 dark:text-zinc-500">
                     Or drop more files anywhere
                   </span>
@@ -484,6 +537,18 @@ export default function SendComposer() {
               className="hidden"
               accept=".pdf,.docx,.doc,.txt,.png,.jpg,.jpeg,.xlsx,.xls,.pptx,.ppt,.zip"
             />
+
+            {/* Hidden camera input for Capacitor native app */}
+            {isCapacitorNative && (
+              <input
+                ref={docCameraInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={handleFileInput}
+                className="hidden"
+              />
+            )}
           </div>
         )}
 
@@ -522,12 +587,41 @@ export default function SendComposer() {
                 <span className="text-[10px] text-slate-400 font-mono">
                   {frontPreview ? 'Change Image' : 'Click to Upload'}
                 </span>
+
+                {/* Mobile-Only Direct Camera Pill */}
+                {isMobileDevice && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      frontCameraInputRef.current?.click();
+                    }}
+                    className="relative z-10 mt-2 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 transition-colors cursor-pointer touch-manipulation shadow-xs"
+                  >
+                    <Camera className="w-3 h-3" />
+                    <span>📷 Camera</span>
+                  </button>
+                )}
+
                 <input
                   type="file"
-                  accept="image/*"
+                  accept={isMobileDevice ? "image/*,.pdf" : "image/*"}
                   onChange={(e) => handleCardUpload(e, 'front')}
                   className="absolute inset-0 opacity-0 cursor-pointer"
                 />
+
+                {/* Mobile-Only Dedicated Camera Input */}
+                {isMobileDevice && (
+                  <input
+                    ref={frontCameraInputRef}
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    onChange={(e) => handleCardUpload(e, 'front')}
+                    className="hidden"
+                  />
+                )}
               </label>
 
               {/* Back Slot */}
@@ -552,12 +646,41 @@ export default function SendComposer() {
                 <span className="text-[10px] text-slate-400 font-mono">
                   {backPreview ? 'Change Image' : 'Click to Upload'}
                 </span>
+
+                {/* Mobile-Only Direct Camera Pill */}
+                {isMobileDevice && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      backCameraInputRef.current?.click();
+                    }}
+                    className="relative z-10 mt-2 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 transition-colors cursor-pointer touch-manipulation shadow-xs"
+                  >
+                    <Camera className="w-3 h-3" />
+                    <span>📷 Camera</span>
+                  </button>
+                )}
+
                 <input
                   type="file"
-                  accept="image/*"
+                  accept={isMobileDevice ? "image/*,.pdf" : "image/*"}
                   onChange={(e) => handleCardUpload(e, 'back')}
                   className="absolute inset-0 opacity-0 cursor-pointer"
                 />
+
+                {/* Mobile-Only Dedicated Camera Input */}
+                {isMobileDevice && (
+                  <input
+                    ref={backCameraInputRef}
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    onChange={(e) => handleCardUpload(e, 'back')}
+                    className="hidden"
+                  />
+                )}
               </label>
             </div>
           </div>
